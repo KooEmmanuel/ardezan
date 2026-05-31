@@ -67,12 +67,20 @@ def _set_customer_cookie(response: Response, customer_id: str) -> datetime:
         settings.session_secret_customer,
         salt=CUSTOMER_COOKIE_SALT,
     )
+    # In production the storefront (Vercel) and the API (Railway) are on
+    # different eTLD+1 domains. The browser drops ``SameSite=Lax`` cookies
+    # on cross-site requests, so authenticated calls from the storefront
+    # arrive at the API without the session cookie and 401. Setting
+    # ``SameSite=None`` lets the browser send the cookie cross-site;
+    # ``Secure`` is required when ``None`` is used. In dev (same host)
+    # we keep ``Lax`` so the cookie still works without HTTPS.
+    same_site = "none" if settings.is_production else "lax"
     response.set_cookie(
         key=CUSTOMER_COOKIE_NAME,
         value=token,
         max_age=CUSTOMER_SESSION_TTL,
         httponly=True,
-        samesite="lax",
+        samesite=same_site,
         secure=settings.is_production,
         path="/",
     )

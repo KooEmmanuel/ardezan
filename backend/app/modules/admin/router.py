@@ -73,12 +73,15 @@ def _set_admin_cookie(response: Response, admin_id: str, role: str) -> datetime:
         settings.session_secret_admin,
         salt=ADMIN_COOKIE_SALT,
     )
+    # See _set_customer_cookie for why production needs ``SameSite=None``
+    # (storefront + admin live cross-site from the API on Railway).
+    same_site = "none" if settings.is_production else "lax"
     response.set_cookie(
         key=ADMIN_COOKIE_NAME,
         value=token,
         max_age=ADMIN_SESSION_TTL,
         httponly=True,
-        samesite="lax",
+        samesite=same_site,
         secure=settings.is_production,
         path="/",
     )

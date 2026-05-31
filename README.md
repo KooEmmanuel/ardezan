@@ -158,33 +158,96 @@ Full reference is in [`backend/.env.example`](backend/.env.example) and [`fronte
 - `AI_DAILY_SPEND_CEILING_USD` — hard cap on AI spend per day
 
 ### Frontend (required)
-- `NEXT_PUBLIC_API_BASE_URL` — where the browser finds the backend
-- `NEXT_PUBLIC_SITE_URL` — public origin for canonical URLs + sitemap
+- `NEXT_PUBLIC_API_BASE_URL` — base URL the browser uses for API calls. **In production set this to an empty string** so the browser uses relative `/api/*` paths that Vercel rewrites to the backend (see [Deployment notes](#deployment-notes)). In local dev, leave it as `http://localhost:8000`.
+- `NEXT_PUBLIC_SITE_URL` — public origin for canonical URLs + sitemap (e.g. `https://www.ardezan.com`).
+- `NEXT_PUBLIC_STORAGE_BACKEND` — `b2` in production (so the Next image optimizer transcodes B2 URLs to WebP/AVIF) or `local` in dev.
+
+### Frontend (production only)
+- `BACKEND_PROXY_URL` — server-only variable holding the real backend origin (e.g. `https://your-backend.up.railway.app`). Used by Vercel's edge rewrite to forward `/api/*` requests, and by SSR pages to call the backend directly. Never sent to the browser — the Railway hostname stays out of the public JS bundle.
 
 ---
 
 ## Deployment notes
 
-The stack splits cleanly:
+The stack splits cleanly: **Vercel** runs the Next.js frontend, **Railway** runs the FastAPI backend + the arq worker + Redis, **MongoDB Atlas** hosts the database, **Backblaze B2** holds object storage.
 
-**Frontend → Vercel**
-- One-click import from GitHub, root directory `frontend/`.
-- Set `NEXT_PUBLIC_API_BASE_URL` and `NEXT_PUBLIC_SITE_URL` in the Vercel project settings.
-- If you flip `STORAGE_BACKEND=b2` on the backend, also set `NEXT_PUBLIC_STORAGE_BACKEND=b2` so the Next image optimizer transcodes B2 URLs.
+### Frontend → Vercel
 
-**Backend → Railway** (or Render / Fly.io)
-- Deploy the `backend/` directory as a Python service.
-- Add Redis as a Railway plugin (free hobby tier).
-- MongoDB Atlas free tier handles the database — no need to host it yourself.
-- Set every env var from the [reference above](#environment-variables).
-- Worker runs as a second Railway service from the same image, command `uv run arq worker.main.WorkerSettings`.
-- Point your Stripe webhook at `https://<railway-domain>/api/v1/webhooks/stripe` and put the signing secret in `STRIPE_WEBHOOK_SECRET`.
+Import the repo, set the root directory to `frontend/`.
 
-**Storage → Backblaze B2**
-- Create a bucket, generate an App Key with read+write, set the env vars.
-- The `scripts/migrate_local_to_b2.py` script uploads anything already on the local disk to B2 — useful when moving from local dev to a cloud bucket.
+**Environment variables on Vercel:**
 
-A more detailed operations + incident playbook lives in [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
+| Variable | Production value | Notes |
+|---|---|---|
+| `NEXT_PUBLIC_API_BASE_URL` | *(empty string)* | Makes every API call a relative URL. Leave the value field blank. |
+| `BACKEND_PROXY_URL` | `https://your-backend.up.railway.app` | Server-only. Used by `next.config.ts` rewrites + SSR fetches. |
+| `NEXT_PUBLIC_SITE_URL` | `https://www.ardezan.com` (your domain) | Sitemap, canonical URLs, OG tags. |
+| `NEXT_PUBLIC_STORAGE_BACKEND` | `b2` | Enables the Next image optimizer for B2-hosted images. |
+
+`next.config.ts` adds a rewrite rule that forwards `/api/*` from the storefront origin to Railway. The browser sees the API as same-origin, so session cookies are first-party `SameSite=Lax` — no CORS, no cookie domain plumbing, SSR pages read auth cleanly. This is the canonical [Next.js Backend-for-Frontend proxy pattern](https://nextjs.org/docs/app/guides/backend-for-frontend).
+
+After saving env vars, redeploy from the **Deployments** tab with "Use existing build cache" unchecked (`NEXT_PUBLIC_*` values bake into the bundle at build time).
+
+### Backend → Railway (two services from one repo)
+
+**Service 1 — API (web):**
+- Root Directory: `backend/`
+- Start Command: `uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Networking → **Target Port: 8080** (Railway's default `$PORT`).
+- Custom domain optional — the rewrite pattern means you can run without one.
+
+**Service 2 — Worker (background jobs):**
+- Same GitHub repo, Root Directory: `backend/`
+- Start Command: `uv run arq worker.main.WorkerSettings`
+- No public domain.
+- Handles AI try-on orchestration, transactional emails, retention sweeps, inventory hold expiry, daily low-stock digest.
+
+**Redis (Railway plugin):**
+- Railway dashboard → **+ New** → **Database** → **Add Redis**.
+- Reference its URL from both services: `REDIS_URL=${{Redis.REDIS_PUBLIC_URL}}` (or paste the resolved value directly).
+
+**Shared env vars** (set at **Project → Shared Variables** so both API and worker inherit):
+- `APP_ENV=production`
+- `MONGO_URL`, `MONGO_DB`
+- `GEMINI_API_KEY`, `GOOGLE_API_KEY` (same value)
+- Three fresh secrets — `SESSION_SECRET_CUSTOMER`, `SESSION_SECRET_ADMIN`, `GUEST_TOKEN_SECRET`
+- `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`
+- `STORAGE_BACKEND=b2` + `B2_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`, `STORAGE_KEY_PREFIX=atelier/`
+- `SMTP_*` family for transactional email
+- `EMAIL_LINK_BASE_URL=https://www.ardezan.com` (used inside email templates for reset/verify/order links)
+- `TRUST_FORWARDED_FOR=true` (Railway sits behind a proxy; client-IP rate limits need this)
+- `CORS_ALLOWED_ORIGINS=https://www.ardezan.com,https://ardezan.com` — kept for safety, though the rewrite makes it technically unused
+- `ADMIN_BOOTSTRAP_EMAIL`, `ADMIN_BOOTSTRAP_PASSWORD`, `ADMIN_BOOTSTRAP_NAME` — first-admin bootstrap on first boot
+
+**Stripe webhook:**
+Point a webhook at `https://your-backend.up.railway.app/api/v1/webhooks/stripe` listening for `payment_intent.succeeded`, `payment_intent.payment_failed`, `charge.refunded`, `refund.created`, `refund.updated`. Copy the signing secret (`whsec_...`) into `STRIPE_WEBHOOK_SECRET`.
+
+### Database → MongoDB Atlas
+
+Free tier covers a long way. Two things to remember:
+- **Network access:** add `0.0.0.0/0` to the IP Access List so Railway's dynamic egress IPs can connect. Your username + password is still the real auth boundary.
+- Set `MONGO_URL` to your `mongodb+srv://...` connection string on Railway.
+
+### Storage → Backblaze B2
+
+- Create a bucket, generate an App Key with read+write, set `B2_*` env vars on Railway with `STORAGE_BACKEND=b2`.
+- `backend/scripts/migrate_local_to_b2.py` uploads anything already on local disk to B2 — useful when moving an existing dev environment to a real bucket.
+
+### What the deployed shape looks like
+
+```
+Browser  →  https://www.ardezan.com  (Vercel)
+              │
+              │  /api/*  rewrites at the edge
+              ▼
+         https://your-backend.up.railway.app  (FastAPI)
+              │
+              ├──→ MongoDB Atlas
+              ├──→ Redis (Railway plugin)        ←──  arq worker (Railway service 2)
+              └──→ Backblaze B2 (signed URLs)
+```
+
+A detailed operations + incident playbook lives in [`docs/RUNBOOK.md`](docs/RUNBOOK.md).
 
 ---
 

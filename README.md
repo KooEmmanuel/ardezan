@@ -79,7 +79,7 @@ You'll need:
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/emmanuelnyatefe/ardezan.git
+git clone https://github.com/KooEmmanuel/ardezan.git
 cd ardezan
 
 # Backend deps
@@ -236,6 +236,6 @@ Copyright © 2026 Emmanuel Nyatefe.
 
 ## Author
 
-Built by [Emmanuel Nyatefe](https://github.com/emmanuelnyatefe).
+Built by [Emmanuel Nyatefe](https://github.com/KooEmmanuel).
 
 If you're using this or building something similar, I'd love to hear about it — open an issue or reach out.

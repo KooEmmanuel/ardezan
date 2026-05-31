@@ -91,8 +91,11 @@ class Settings(BaseSettings):
     # Login brute-force / credential-stuffing protection. Per-IP burst guards
     # against automated spraying; per-email (15-min window) guards a single
     # targeted account without locking it out permanently.
+    # The per-email cap is intentionally loose enough for legitimate
+    # forgot-my-password loops and demo/QA cycles. The per-IP cap is the
+    # real defence against automated spraying — keep that one tight.
     rate_limit_login_ip_per_min: int = 10
-    rate_limit_login_email_per_15min: int = 7
+    rate_limit_login_email_per_15min: int = 30
 
     # ── Inventory ────────────────────────────────────────────────────
     checkout_soft_hold_minutes: int = 10

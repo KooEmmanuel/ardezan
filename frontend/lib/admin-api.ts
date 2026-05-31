@@ -7,8 +7,17 @@ import { cookies } from "next/headers";
 
 import type { OrderPublic } from "@/lib/types";
 
+// Admin pages are SSR-only (this whole module is ``import "server-only"``),
+// which means every fetch runs in Vercel's Node runtime — and Node's
+// ``fetch`` requires an absolute URL. ``NEXT_PUBLIC_API_BASE_URL`` is
+// empty in prod (so client code can use relative URLs that go through
+// the Vercel rewrite), so we prefer ``BACKEND_PROXY_URL`` here to talk
+// to Railway directly without an extra hop, and fall through to the
+// public base URL or localhost in dev.
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+  process.env.BACKEND_PROXY_URL?.replace(/\/$/, "") ||
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
+  "http://localhost:8000";
 
 export type AdminAuthResult<T> =
   | { kind: "ok"; data: T }

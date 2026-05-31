@@ -39,7 +39,15 @@ async function fetchFittingRoom(
 ): Promise<
   FittingRoomList | { unauthenticated: true } | { unavailable: true }
 > {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+  // SSR runs in Vercel's Node runtime — Node's fetch needs an absolute
+  // URL. ``NEXT_PUBLIC_API_BASE_URL`` is empty in prod (browser uses
+  // relative URLs through the Vercel rewrite), so we go straight to
+  // Railway via ``BACKEND_PROXY_URL``. See ``lib/server-api.ts`` for
+  // the same fallback shape.
+  const base =
+    process.env.BACKEND_PROXY_URL?.replace(/\/$/, "") ||
+    process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
+    "http://localhost:8000";
   try {
     const r = await fetch(`${base}/api/v1/account/fitting-room?limit=24`, {
       headers: cookieHeader ? { cookie: cookieHeader } : undefined,

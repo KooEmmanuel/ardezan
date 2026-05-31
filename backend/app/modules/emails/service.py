@@ -181,7 +181,11 @@ class EmailService:
         token: str,
     ) -> dict[str, Any]:
         base = self.settings.email_link_base_url.rstrip("/")
-        reset_url = f"{base}/auth/reset-password?token={token}"
+        # The ``/auth/reset-password`` page is the "request a reset link"
+        # form; ``/auth/reset-password/confirm`` is the page that reads
+        # the token from the query string and lets the customer set a
+        # new password. The link in the email must go to the confirm page.
+        reset_url = f"{base}/auth/reset-password/confirm?token={token}"
         subject, text, html = render_password_reset(name=name, reset_url=reset_url)
         await self.smtp.send(to=to, subject=subject, text=text, html=html)
         return {"sent": True, "to": to, "kind": "password_reset"}

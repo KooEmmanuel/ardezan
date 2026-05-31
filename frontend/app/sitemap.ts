@@ -3,7 +3,10 @@ import type { MetadataRoute } from "next";
 import { serverApi } from "@/lib/server-api";
 import { absoluteUrl } from "@/lib/site";
 
-export const revalidate = 3600; // refresh the sitemap hourly
+// Per-request rather than ISR — Googlebot crawls are infrequent and
+// hitting the backend live keeps the sitemap from blocking the
+// Vercel build when Railway is cold.
+export const dynamic = "force-dynamic";
 
 // Static, always-present routes. Try-on is the brand's front door, so it gets
 // the highest priority after the home page.

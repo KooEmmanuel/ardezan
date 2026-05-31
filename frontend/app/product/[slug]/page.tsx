@@ -8,7 +8,8 @@ import { ProductGallery } from "@/components/product-gallery";
 import { serverApi } from "@/lib/server-api";
 import type { ProductDetail } from "@/lib/types";
 
-export const revalidate = 60;
+// Per-request rendering — see app/page.tsx for the rationale.
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,

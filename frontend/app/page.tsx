@@ -16,7 +16,12 @@ import type {
   SiteMediaSlot,
 } from "@/lib/types";
 
-export const revalidate = 60;
+// Rendered per request, not at build time. ISR (revalidate=60) would
+// pre-fetch from the API during ``next build`` and fail the Vercel
+// build whenever the backend is cold, slow, or unreachable. Per-request
+// rendering is fast enough — SSR over a warm backend is sub-200ms —
+// and survives backend hiccups during deploys.
+export const dynamic = "force-dynamic";
 
 // Picsum fallbacks for slots the admin hasn't generated yet.
 const PICSUM_FALLBACK: Record<SiteMediaSlot, string> = {

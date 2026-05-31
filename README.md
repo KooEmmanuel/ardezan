@@ -159,11 +159,11 @@ Full reference is in [`backend/.env.example`](backend/.env.example) and [`fronte
 
 ### Frontend (required)
 - `NEXT_PUBLIC_API_BASE_URL` — base URL the browser uses for API calls. **In production set this to an empty string** so the browser uses relative `/api/*` paths that Vercel rewrites to the backend (see [Deployment notes](#deployment-notes)). In local dev, leave it as `http://localhost:8000`.
-- `NEXT_PUBLIC_SITE_URL` — public origin for canonical URLs + sitemap (e.g. `https://www.ardezan.com`).
+- `NEXT_PUBLIC_SITE_URL` — public origin for canonical URLs + sitemap (your storefront's public URL).
 - `NEXT_PUBLIC_STORAGE_BACKEND` — `b2` in production (so the Next image optimizer transcodes B2 URLs to WebP/AVIF) or `local` in dev.
 
 ### Frontend (production only)
-- `BACKEND_PROXY_URL` — server-only variable holding the real backend origin (e.g. `https://your-backend.up.railway.app`). Used by Vercel's edge rewrite to forward `/api/*` requests, and by SSR pages to call the backend directly. Never sent to the browser — the Railway hostname stays out of the public JS bundle.
+- `BACKEND_PROXY_URL` — server-only variable holding the absolute origin of your deployed backend (whatever URL Railway / Render / Fly / your own host assigns). Used by Vercel's edge rewrite to forward `/api/*` requests, and by SSR pages to call the backend directly. Never sent to the browser — keeping it server-only means the backend hostname stays out of the public JS bundle.
 
 ---
 
@@ -180,8 +180,8 @@ Import the repo, set the root directory to `frontend/`.
 | Variable | Production value | Notes |
 |---|---|---|
 | `NEXT_PUBLIC_API_BASE_URL` | *(empty string)* | Makes every API call a relative URL. Leave the value field blank. |
-| `BACKEND_PROXY_URL` | `https://your-backend.up.railway.app` | Server-only. Used by `next.config.ts` rewrites + SSR fetches. |
-| `NEXT_PUBLIC_SITE_URL` | `https://www.ardezan.com` (your domain) | Sitemap, canonical URLs, OG tags. |
+| `BACKEND_PROXY_URL` | Your deployed backend's origin | Server-only. Used by `next.config.ts` rewrites + SSR fetches. |
+| `NEXT_PUBLIC_SITE_URL` | Your storefront's public URL | Sitemap, canonical URLs, OG tags. |
 | `NEXT_PUBLIC_STORAGE_BACKEND` | `b2` | Enables the Next image optimizer for B2-hosted images. |
 
 `next.config.ts` adds a rewrite rule that forwards `/api/*` from the storefront origin to Railway. The browser sees the API as same-origin, so session cookies are first-party `SameSite=Lax` — no CORS, no cookie domain plumbing, SSR pages read auth cleanly. This is the canonical [Next.js Backend-for-Frontend proxy pattern](https://nextjs.org/docs/app/guides/backend-for-frontend).
@@ -214,13 +214,13 @@ After saving env vars, redeploy from the **Deployments** tab with "Use existing 
 - `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`
 - `STORAGE_BACKEND=b2` + `B2_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`, `STORAGE_KEY_PREFIX=atelier/`
 - `SMTP_*` family for transactional email
-- `EMAIL_LINK_BASE_URL=https://www.ardezan.com` (used inside email templates for reset/verify/order links)
+- `EMAIL_LINK_BASE_URL` — your storefront URL, used inside email templates for reset/verify/order links
 - `TRUST_FORWARDED_FOR=true` (Railway sits behind a proxy; client-IP rate limits need this)
-- `CORS_ALLOWED_ORIGINS=https://www.ardezan.com,https://ardezan.com` — kept for safety, though the rewrite makes it technically unused
+- `CORS_ALLOWED_ORIGINS` — your storefront origin(s), comma-separated. Kept for safety, though the rewrite makes it technically unused.
 - `ADMIN_BOOTSTRAP_EMAIL`, `ADMIN_BOOTSTRAP_PASSWORD`, `ADMIN_BOOTSTRAP_NAME` — first-admin bootstrap on first boot
 
 **Stripe webhook:**
-Point a webhook at `https://your-backend.up.railway.app/api/v1/webhooks/stripe` listening for `payment_intent.succeeded`, `payment_intent.payment_failed`, `charge.refunded`, `refund.created`, `refund.updated`. Copy the signing secret (`whsec_...`) into `STRIPE_WEBHOOK_SECRET`.
+Point a webhook at `<your-backend-origin>/api/v1/webhooks/stripe` listening for `payment_intent.succeeded`, `payment_intent.payment_failed`, `charge.refunded`, `refund.created`, `refund.updated`. Copy the signing secret (`whsec_...`) into `STRIPE_WEBHOOK_SECRET`.
 
 ### Database → MongoDB Atlas
 
@@ -236,11 +236,11 @@ Free tier covers a long way. Two things to remember:
 ### What the deployed shape looks like
 
 ```
-Browser  →  https://www.ardezan.com  (Vercel)
+Browser  →  Your storefront domain  (Vercel)
               │
               │  /api/*  rewrites at the edge
               ▼
-         https://your-backend.up.railway.app  (FastAPI)
+         Your backend origin  (FastAPI on Railway / Render / Fly / …)
               │
               ├──→ MongoDB Atlas
               ├──→ Redis (Railway plugin)        ←──  arq worker (Railway service 2)

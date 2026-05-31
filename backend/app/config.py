@@ -55,6 +55,15 @@ class Settings(BaseSettings):
     session_secret_admin: str = "change-me-admin-secret"
     guest_token_secret: str = "change-me-guest-token-secret"
 
+    # Optional: when the storefront and API are on different subdomains
+    # of the same eTLD+1 (e.g. ``www.ardezan.com`` and ``api.ardezan.com``),
+    # set this to ``.ardezan.com`` (note the leading dot — apex + all
+    # subdomains). The session cookie is then sent by the browser to
+    # both the storefront and the API, so SSR pages can read it on
+    # Vercel and the API can read it on Railway.
+    # Leave empty in dev (cookies stay host-scoped to localhost).
+    session_cookie_domain: str = ""
+
     # First-admin bootstrap. If both are set on first boot and no admin with
     # this email exists yet, one is created with the ``owner`` role. Used to
     # avoid a chicken-and-egg problem on a fresh database. Idempotent.

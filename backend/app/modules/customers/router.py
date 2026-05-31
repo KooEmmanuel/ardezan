@@ -67,14 +67,15 @@ def _set_customer_cookie(response: Response, customer_id: str) -> datetime:
         settings.session_secret_customer,
         salt=CUSTOMER_COOKIE_SALT,
     )
-    # In production the storefront (Vercel) and the API (Railway) are on
-    # different eTLD+1 domains. The browser drops ``SameSite=Lax`` cookies
-    # on cross-site requests, so authenticated calls from the storefront
-    # arrive at the API without the session cookie and 401. Setting
-    # ``SameSite=None`` lets the browser send the cookie cross-site;
-    # ``Secure`` is required when ``None`` is used. In dev (same host)
-    # we keep ``Lax`` so the cookie still works without HTTPS.
-    same_site = "none" if settings.is_production else "lax"
+    # Cookie domain + SameSite choice depends on how the storefront
+    # and API are wired:
+    # - Same eTLD+1 (e.g. ``www.ardezan.com`` storefront + ``api.ardezan.com``
+    #   API, with SESSION_COOKIE_DOMAIN=".ardezan.com"): use SameSite=Lax,
+    #   browser sends the cookie to both. Cleaner, less CSRF surface.
+    # - Cross-site (Vercel + raw Railway URL): fall back to SameSite=None
+    #   so the browser allows cross-site send.
+    cookie_domain = settings.session_cookie_domain or None
+    same_site = "lax" if cookie_domain or not settings.is_production else "none"
     response.set_cookie(
         key=CUSTOMER_COOKIE_NAME,
         value=token,
@@ -82,6 +83,7 @@ def _set_customer_cookie(response: Response, customer_id: str) -> datetime:
         httponly=True,
         samesite=same_site,
         secure=settings.is_production,
+        domain=cookie_domain,
         path="/",
     )
     return datetime.now(timezone.utc) + timedelta(seconds=CUSTOMER_SESSION_TTL)
@@ -152,7 +154,12 @@ async def customer_logout(
     response: Response,
     customer: CustomerDep,
 ) -> dict[str, str]:
-    response.delete_cookie(CUSTOMER_COOKIE_NAME, path="/")
+    settings = get_settings()
+    response.delete_cookie(
+        CUSTOMER_COOKIE_NAME,
+        path="/",
+        domain=settings.session_cookie_domain or None,
+    )
     return {"status": "ok"}
 
 

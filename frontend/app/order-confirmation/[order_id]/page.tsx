@@ -416,7 +416,7 @@ function AuthBlockedView({ orderId }: { orderId: string }) {
           contains a one-click link that signs you in to this order.
         </p>
         <p className="text-[color:var(--muted)] text-[12px] mb-6">
-          Order reference: <span className="font-mono">{orderId}</span>
+          Order reference: <span className="font-mono break-all">{orderId}</span>
         </p>
         <div className="space-y-3">
           <Link

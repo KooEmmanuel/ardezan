@@ -39,7 +39,7 @@ export default async function AccountOrdersPage() {
 
   return (
     <section className="max-w-[900px] mx-auto px-5 py-12">
-      <div className="flex items-end justify-between mb-6">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between mb-6">
         <div>
           <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted)] mb-1">
             Your account
@@ -47,7 +47,7 @@ export default async function AccountOrdersPage() {
           <h1 className="font-display text-4xl">Order history</h1>
           <div className="text-xs text-[color:var(--muted)] mt-1">{total} total</div>
         </div>
-        <Link className="btn-ghost underline underline-offset-4 text-sm" href="/account/me">
+        <Link className="btn-ghost underline underline-offset-4 text-sm shrink-0 self-start sm:self-auto" href="/account/me">
           ← Account
         </Link>
       </div>

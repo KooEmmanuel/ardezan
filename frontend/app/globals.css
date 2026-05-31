@@ -384,6 +384,28 @@ summary:focus-visible {
 .ratio-11 { aspect-ratio: 1 / 1; }
 .ratio-32 { aspect-ratio: 3 / 2; }
 
+/* ── Try-on stage progress bar ─────────────────────────────── */
+.stage-rail { width: 100%; }
+
+.stage-progress {
+  height: 6px;
+  width: 100%;
+  background: var(--line);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.stage-progress-fill {
+  height: 100%;
+  background: var(--ink);
+  border-radius: 9999px;
+  transition: width 600ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-progress-fill { transition: none; }
+}
+
 /* ── Scrollbar ────────────────────────────────────────────── */
 .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
 .scrollbar-thin::-webkit-scrollbar-thumb {

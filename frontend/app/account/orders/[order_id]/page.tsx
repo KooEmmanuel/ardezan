@@ -37,18 +37,18 @@ export default async function AccountOrderDetailPage({
 
   return (
     <section className="max-w-[900px] mx-auto px-5 py-12">
-      <div className="mb-6 flex items-end justify-between gap-4">
-        <div>
+      <div className="mb-6 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+        <div className="min-w-0">
           <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted)] mb-1">
             Order
           </div>
-          <h1 className="font-display text-4xl">{order.order_number}</h1>
+          <h1 className="font-display text-3xl sm:text-4xl break-words">{order.order_number}</h1>
           <div className="text-xs text-[color:var(--muted)] mt-1 capitalize">
             {order.status.replace(/_/g, " ")} · placed{" "}
             {new Date(order.created_at).toLocaleDateString()}
           </div>
         </div>
-        <Link className="btn-ghost underline underline-offset-4 text-sm" href="/account/orders">
+        <Link className="btn-ghost underline underline-offset-4 text-sm shrink-0 self-start sm:self-auto" href="/account/orders">
           ← All orders
         </Link>
       </div>

@@ -94,7 +94,7 @@ export function Modal({
         </header>
         <div className="px-5 py-4 max-h-[70vh] overflow-y-auto">{children}</div>
         {footer ? (
-          <footer className="px-5 py-3 border-t border-[color:var(--line)] bg-[color:var(--ivory)] flex items-center justify-end gap-2">
+          <footer className="px-5 py-3 border-t border-[color:var(--line)] bg-[color:var(--ivory)] flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
             {footer}
           </footer>
         ) : null}

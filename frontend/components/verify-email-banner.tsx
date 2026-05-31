@@ -53,7 +53,7 @@ export function VerifyEmailBanner({
         {email ? (
           <>
             {" "}
-            We sent a link to <span className="font-medium">{email}</span>.
+            We sent a link to <span className="font-medium break-all">{email}</span>.
           </>
         ) : (
           " Check your inbox for the verification link."

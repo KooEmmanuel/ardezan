@@ -438,18 +438,18 @@ function BucketCard({
                 <div className="inline-flex items-center border border-[color:var(--line)] rounded-md bg-white">
                   <button
                     aria-label="Decrease"
-                    className="w-7 h-7 hover:bg-black/5"
+                    className="w-9 h-9 sm:w-7 sm:h-7 flex items-center justify-center hover:bg-black/5"
                     onClick={() => onUpdateQuantity(line.line_id, line.quantity - 1)}
                     type="button"
                   >
                     −
                   </button>
-                  <span className="w-7 text-center text-[12px] tabular-nums">
+                  <span className="w-8 sm:w-7 text-center text-[12px] tabular-nums">
                     {line.quantity}
                   </span>
                   <button
                     aria-label="Increase"
-                    className="w-7 h-7 hover:bg-black/5"
+                    className="w-9 h-9 sm:w-7 sm:h-7 flex items-center justify-center hover:bg-black/5"
                     onClick={() => onUpdateQuantity(line.line_id, line.quantity + 1)}
                     type="button"
                   >

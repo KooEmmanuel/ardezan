@@ -243,9 +243,9 @@ function CatalogTile({ product }: { product: ProductListItem }) {
         <div className="text-[10px] uppercase tracking-[0.14em] text-[color:var(--muted)]">
           {product.category}
         </div>
-        <div className="flex items-center justify-between mt-1">
-          <div className="font-display text-lg leading-tight">{product.title}</div>
-          <div className="text-sm flex items-baseline gap-1.5">
+        <div className="flex items-center justify-between gap-2 mt-1">
+          <div className="font-display text-lg leading-tight truncate min-w-0">{product.title}</div>
+          <div className="text-sm flex items-baseline gap-1.5 shrink-0">
             {onSale ? (
               <span className="text-[color:var(--muted)] line-through text-xs">
                 {formatMoney(compareAt, product.pricing.currency)}

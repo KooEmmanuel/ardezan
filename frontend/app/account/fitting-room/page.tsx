@@ -107,12 +107,14 @@ export default async function FittingRoomPage() {
             <p className="text-[color:var(--muted)] mb-5">
               Every try-on session, custom design, and order lives here.
             </p>
-            <Link className="btn-primary" href="/auth/login">
-              Sign in
-            </Link>
-            <Link className="btn-secondary ml-2" href="/auth/signup">
-              Create account
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-2 sm:justify-center">
+              <Link className="btn-primary" href="/auth/login">
+                Sign in
+              </Link>
+              <Link className="btn-secondary" href="/auth/signup">
+                Create account
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -377,8 +379,8 @@ function Section({
 }) {
   return (
     <section className="mb-10 scroll-mt-24" id={id}>
-      <div className="flex items-end justify-between mb-3">
-        <div>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between mb-3">
+        <div className="min-w-0">
           <div className="text-[10px] uppercase tracking-[0.18em] text-[color:var(--muted)]">
             {eyebrow}
           </div>
@@ -390,7 +392,7 @@ function Section({
           ) : null}
         </div>
         <Link
-          className="btn-ghost underline underline-offset-4 text-sm"
+          className="btn-ghost underline underline-offset-4 text-sm shrink-0 self-start sm:self-auto"
           href={actionHref}
         >
           {actionLabel}

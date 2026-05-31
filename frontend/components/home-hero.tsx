@@ -281,7 +281,7 @@ function HeroCopyAndForm({ onStart }: { onStart: () => void }) {
               <path d="M12 16V4M6 10l6-6 6 6M4 20h16" />
             </svg>
           </div>
-          <div className="text-sm font-medium">
+          <div className="text-sm font-medium px-3 break-words">
             {photo
               ? photo.name
               : hasSaved

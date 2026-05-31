@@ -139,9 +139,9 @@ export default function CheckoutPage() {
 
   return (
     <section className="max-w-[1100px] mx-auto px-5 py-10">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="font-display text-4xl">Checkout</h1>
-        <Link className="btn-ghost underline underline-offset-4 text-sm" href="/cart">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-6">
+        <h1 className="font-display text-3xl sm:text-4xl">Checkout</h1>
+        <Link className="btn-ghost underline underline-offset-4 text-sm self-start sm:self-auto" href="/cart">
           ← Back to bag
         </Link>
       </div>

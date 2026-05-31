@@ -222,8 +222,8 @@ function TryOnInner() {
               ref={inputRef}
               type="file"
             />
-            <div className="flex items-center justify-between mt-4 gap-3">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col items-start gap-2 mt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   className="btn-secondary"
                   onClick={() => inputRef.current?.click()}
@@ -303,7 +303,7 @@ function TryOnInner() {
                   <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted)] mb-2">
                     Fit preference
                   </div>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {FIT_OPTIONS.map((value) => (
                       <button
                         className="btn-secondary text-xs capitalize"

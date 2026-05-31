@@ -461,7 +461,7 @@ function DesignMeInner() {
                   <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted)] mb-2">
                     Piece
                   </div>
-                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
                     {PIECE_LABELS.map((p) => {
                       const enabled =
                         !selectedFabric || allowedPieces.has(p.value);
@@ -505,7 +505,7 @@ function DesignMeInner() {
                   <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted)] mb-2">
                     Complexity
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     {COMPLEXITY_OPTIONS.map((c) => {
                       const isActive = c.value === complexity;
                       return (

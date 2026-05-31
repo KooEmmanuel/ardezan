@@ -26,14 +26,14 @@ export function ProductCard({ product }: { product: ProductListItem }) {
           <span className="absolute top-2 left-2 pill pill-outline">AI ready</span>
         ) : null}
       </Link>
-      <div className="p-3 flex items-center justify-between">
-        <div>
+      <div className="p-3 flex items-center justify-between gap-2">
+        <div className="min-w-0">
           <p className="text-[10px] uppercase tracking-[0.14em] text-[color:var(--muted)]">
             {product.category}
           </p>
-          <h3 className="font-display text-lg leading-tight m-0">{product.title}</h3>
+          <h3 className="font-display text-lg leading-tight m-0 truncate">{product.title}</h3>
         </div>
-        <p className="text-sm m-0">{formatMoney(price, product.pricing.currency)}</p>
+        <p className="text-sm m-0 shrink-0">{formatMoney(price, product.pricing.currency)}</p>
       </div>
     </article>
   );

@@ -247,9 +247,9 @@ function ProductTile({ product }: { product: ProductListItem }) {
         <div className="text-[10px] uppercase tracking-[0.14em] text-[color:var(--muted)]">
           {product.category}
         </div>
-        <div className="flex items-center justify-between mt-1">
-          <div className="font-display text-lg leading-tight">{product.title}</div>
-          <div className="text-sm">{formatMoney(price, product.pricing.currency)}</div>
+        <div className="flex items-center justify-between gap-2 mt-1">
+          <div className="font-display text-lg leading-tight truncate min-w-0">{product.title}</div>
+          <div className="text-sm shrink-0">{formatMoney(price, product.pricing.currency)}</div>
         </div>
       </div>
     </Link>

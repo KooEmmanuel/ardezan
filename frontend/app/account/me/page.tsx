@@ -59,8 +59,8 @@ export default function AccountMePage() {
       <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted)] mb-1">
         Your account
       </div>
-      <h1 className="font-display text-4xl mb-1">{me.name || me.email}</h1>
-      <div className="text-[color:var(--muted)] text-sm mb-8">{me.email}</div>
+      <h1 className="font-display text-3xl sm:text-4xl mb-1 break-words">{me.name || me.email}</h1>
+      <div className="text-[color:var(--muted)] text-sm mb-8 break-all">{me.email}</div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
         <AccountTile
@@ -81,7 +81,7 @@ export default function AccountMePage() {
         <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted)] mb-1">
           Email verification
         </div>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="text-sm">
             {me.email_verified_at ? (
               <span style={{ color: "#166534" }}>

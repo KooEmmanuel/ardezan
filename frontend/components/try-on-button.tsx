@@ -80,7 +80,7 @@ export function TryOnButton({
       <button
         {...baseProps}
         className={
-          "absolute top-2 right-2 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-md " +
+          "absolute top-2 right-2 z-10 w-9 h-9 sm:w-8 sm:h-8 rounded-full bg-white/90 backdrop-blur-md " +
           "border border-white/80 shadow flex items-center justify-center hover:bg-white " +
           "transition-transform hover:scale-105 " +
           className

@@ -1,0 +1,399 @@
+@import "tailwindcss";
+
+/*
+ * Ardezan design system (ported from prototype-bw.html).
+ *
+ * Two surface families:
+ *   .ai-canvas  — painted gray gradients + noise texture. Used ONLY behind
+ *                 AI/try-on surfaces so glass cards have something to refract
+ *                 through. Apply on a wrapper that contains the section.
+ *   .card-solid — flat white card on the paper background. Used for ALL
+ *                 commerce surfaces (catalog, product, cart, checkout).
+ *
+ * Glass variants (.glass, .glass-strong, .glass-dark) only make visual sense
+ * on top of .ai-canvas. Placing them on the paper background looks dirty.
+ */
+
+:root {
+  /* Tonal foundation — pure black-and-white minimalism */
+  --paper: #fafafa;
+  --ivory: #f2f2f2;
+  --ink: #050505;
+  --ink-soft: #1a1a1a;
+  --muted: #6b6b6b;
+  --line: #e5e5e5;
+  --accent: #000000;
+}
+
+/*
+ * overflow-x: clip prevents horizontal scroll without breaking
+ * position: sticky on the header. ``hidden`` creates a scroll container,
+ * which would unstick the navbar.
+ */
+html,
+body {
+  background: var(--paper);
+  color: var(--ink);
+  overflow-x: clip;
+}
+
+@supports not (overflow-x: clip) {
+  body { overflow-x: hidden; }
+}
+
+body {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+.font-display {
+  font-family: var(--font-display), "Times New Roman", serif;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+
+.font-display i {
+  font-style: italic;
+}
+
+a,
+button,
+input,
+select,
+summary {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+/* ── Accessibility utilities ───────────────────────────────────── */
+/* Visually hidden but available to screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Toggle pill (used in nav: Try-On / Catalog) ───────────────── */
+.toggle {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 9999px;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--line);
+}
+
+.toggle button {
+  min-height: 2.25rem;
+  padding: 0.4rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.toggle button.on {
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 500;
+}
+
+.nav-link {
+  color: var(--ink-soft);
+  transition: color 120ms;
+}
+
+.nav-link:hover {
+  color: var(--ink);
+}
+
+/* ── AI canvas — painted gradients + noise (only behind AI surfaces) ── */
+.ai-canvas {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-color: #e5e5e5;
+  background-image:
+    radial-gradient(60% 55% at 18% 28%, #9c9c9c 0%, transparent 62%),
+    radial-gradient(50% 50% at 82% 20%, #707070 0%, transparent 60%),
+    radial-gradient(65% 60% at 50% 100%, #c4c4c4 0%, transparent 65%),
+    radial-gradient(40% 40% at 70% 70%, #888888 0%, transparent 55%);
+}
+
+.ai-canvas::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.5 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  opacity: 0.18;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ai-canvas > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Glass cards (only on .ai-canvas) ─────────────────────────── */
+.glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.62) 0%, rgba(255, 255, 255, 0.32) 100%);
+  backdrop-filter: blur(28px) saturate(150%);
+  -webkit-backdrop-filter: blur(28px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-top-color: rgba(255, 255, 255, 0.95);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 24px 50px -24px rgba(0, 0, 0, 0.35);
+  border-radius: 1.25rem;
+}
+
+.glass-strong {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0.5) 100%);
+  backdrop-filter: blur(34px) saturate(160%);
+  -webkit-backdrop-filter: blur(34px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-top-color: rgba(255, 255, 255, 1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05),
+    0 0 0 1px rgba(0, 0, 0, 0.04),
+    0 30px 60px -25px rgba(0, 0, 0, 0.38);
+  border-radius: 1.25rem;
+}
+
+.glass-dark {
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(24px) saturate(120%);
+  -webkit-backdrop-filter: blur(24px) saturate(120%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-radius: 1.25rem;
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .glass,
+  .glass-strong {
+    background: rgba(250, 250, 250, 0.96);
+  }
+  .glass-dark {
+    background: rgba(5, 5, 5, 0.92);
+  }
+}
+
+/* ── Solid commerce card ─────────────────────────────────────── */
+.card-solid {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ink);
+  color: var(--paper);
+  min-height: 2.75rem;
+  padding: 0.75rem 1.1rem;
+  border-radius: 0.6rem;
+  font-weight: 500;
+  font-size: 0.92rem;
+  transition: transform 120ms, background 120ms;
+}
+
+.btn-primary:hover {
+  background: var(--ink-soft);
+}
+
+.btn-primary:active {
+  transform: translateY(1px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  color: var(--ink);
+  min-height: 2.5rem;
+  padding: 0.65rem 1rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--line);
+  font-size: 0.88rem;
+}
+
+.btn-ghost {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.btn-ghost:hover {
+  color: var(--ink);
+}
+
+/* ── Pills ──────────────────────────────────────────────────── */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  color: var(--ink-soft);
+}
+
+.pill-ai {
+  background: #000;
+  border-color: #000;
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pill-sale {
+  background: #000;
+  border-color: #000;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pill-soft {
+  background: var(--ivory);
+  border-color: var(--line);
+  color: var(--ink-soft);
+}
+
+.pill-outline {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: #000;
+  color: #000;
+  font-weight: 600;
+}
+
+/* ── Inputs ─────────────────────────────────────────────────── */
+.input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.6rem 0.75rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.input-glass {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+/* ── Product card hover ─────────────────────────────────────── */
+.product-card {
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+
+.product-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.12);
+}
+
+/* ── Animations ─────────────────────────────────────────────── */
+@keyframes pulseDot {
+  0%, 80%, 100% { opacity: 0.25; }
+  40% { opacity: 1; }
+}
+
+.pulse-dot {
+  animation: pulseDot 1.2s ease-in-out infinite;
+}
+
+.pulse-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.pulse-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.5));
+  background-size: 200% 100%;
+  animation: shimmer 2.2s linear infinite;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.reveal {
+  animation: fadeUp 280ms ease-out;
+}
+
+/* Cross-fade for the hero-cascade image rotation. The incoming image starts
+   transparent and fades up over 700ms while the outgoing layer fades out. */
+@keyframes fadeInImage {
+  from { opacity: 0; transform: scale(1.02); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .shimmer,
+  .pulse-dot {
+    animation: none !important;
+  }
+}
+
+/* ── Aspect ratios ─────────────────────────────────────────── */
+.ratio-45 { aspect-ratio: 4 / 5; }
+.ratio-11 { aspect-ratio: 1 / 1; }
+.ratio-32 { aspect-ratio: 3 / 2; }
+
+/* ── Scrollbar ────────────────────────────────────────────── */
+.scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+
+@media (max-width: 640px) {
+  .toggle { padding: 2px; }
+  .toggle button { min-height: 2rem; padding: 0.35rem 0.65rem; font-size: 0.75rem; }
+  .card-solid { border-radius: 0.75rem; }
+  .glass, .glass-strong, .glass-dark { border-radius: 1rem; }
+}

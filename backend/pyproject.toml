@@ -1,0 +1,65 @@
+[project]
+name = "atelier-backend"
+version = "0.1.0"
+description = "Atelier — AI-native clothing store backend (FastAPI + arq worker)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "email-validator>=2.2",
+    "motor>=3.6", # async MongoDB driver
+    "arq>=0.26", # Redis-backed worker
+    "redis>=5.2",
+    "httpx>=0.28",
+    "python-multipart>=0.0.12",
+    "argon2-cffi>=23.1",
+    "itsdangerous>=2.2",
+    "structlog>=24.4",
+    "google-genai>=0.3",
+    "aioboto3>=13.2", # async S3-compatible client (AWS S3, B2, R2, MinIO)
+    "stripe>=11.4", # Stripe SDK (async via *_async methods)
+    "aiosmtplib>=3.0", # async SMTP client (transactional email)
+    "pillow>=11.0", # image validation in the upload safety pipeline
+    "b2sdk>=2.12.0",
+    "pillow-heif>=1.3.0",
+    "google-adk>=2.1.0", # Google Agent Development Kit — agent runtime
+    "mcp>=1.0", # MCP client SDK (peer dep of google.adk.tools.mcp_tool)
+    "boto3>=1.40.61",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.7",
+    "mypy>=1.13",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "mongomock-motor>=0.0.36",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "RUF"]
+ignore = ["E501"]  # line length handled by formatter
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["motor.*", "arq.*", "aioboto3.*", "aiobotocore.*", "botocore.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

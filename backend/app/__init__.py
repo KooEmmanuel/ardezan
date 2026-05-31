@@ -1,0 +1,1 @@
+"""Ardezan backend — FastAPI service."""

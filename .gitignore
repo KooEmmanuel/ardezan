@@ -1,0 +1,74 @@
+# ─── Secrets ────────────────────────────────────────────────────────
+# Real env files never get committed. ``.env.example`` is fine to commit.
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+!.env.*.example
+
+# ─── Python ─────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg
+*.egg-info/
+.venv/
+venv/
+.uv/
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ─── Node / Next.js ─────────────────────────────────────────────────
+node_modules/
+.next/
+out/
+dist/
+.npm/
+.yarn/
+.pnpm-store/
+*.tsbuildinfo
+.turbo/
+
+# ─── Object storage (the local backend writes here) ─────────────────
+# These are runtime artifacts — customer photos, AI renders, signed
+# uploads. They're either re-creatable (B2 has the cloud copy) or
+# private (customer data). Either way, not for the repo.
+storage/
+
+# ─── Logs ───────────────────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ─── OS junk ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── IDE / tooling ──────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.claude/
+.cursor/
+
+# ─── Internal-only working files ────────────────────────────────────
+# Things that helped build this thing but don't belong in the public repo.
+conversations.md
+requirements-tracker.xlsx
+flows.html
+prototype.html
+prototype-bw.html
+
+# ─── Backups + scratch ──────────────────────────────────────────────
+*.bak
+*.tmp
+scratch/

@@ -6,6 +6,18 @@ const isDev = process.env.NODE_ENV !== "production";
 // CSP must allow connecting to it and loading images served from it.
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 
+// In production we proxy ``/api/*`` through Vercel to Railway via the
+// ``rewrites()`` block below. That makes the API appear at the same
+// origin as the storefront, so the browser treats it as same-site —
+// session cookies "just work" without ``Domain=`` or ``SameSite=None``.
+// The proxy target reads from ``BACKEND_PROXY_URL`` (server-side only
+// — not ``NEXT_PUBLIC_`` so the actual Railway hostname doesn't leak
+// into the client bundle). Falls back to the public API base URL.
+const backendProxyTarget =
+  process.env.BACKEND_PROXY_URL?.replace(/\/$/, "") ||
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
+  "http://localhost:8000";
+
 // Content-Security-Policy.
 //
 // Pragmatic, allow-listed policy rather than a strict nonce-based one — Next's
@@ -56,6 +68,22 @@ const nextConfig: NextConfig = {
 
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
+  },
+
+  // Transparent reverse-proxy: every ``/api/*`` request the browser
+  // sends to ``www.ardezan.com`` is forwarded by Vercel's edge to
+  // Railway. Crucial side-effect: the browser thinks the API lives
+  // on the same origin as the storefront, so session cookies are
+  // first-party, ``SameSite=Lax`` works, no CORS preflights run.
+  // Streaming (SSE for try-on progress) still works — Vercel rewrites
+  // pass response bodies through unchanged.
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${backendProxyTarget}/api/:path*`,
+      },
+    ];
   },
 
   images: {

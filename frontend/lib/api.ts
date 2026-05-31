@@ -23,6 +23,15 @@ import type {
   TryOnSessionDetail,
 } from "@/lib/types";
 
+// In production we leave ``NEXT_PUBLIC_API_BASE_URL`` empty so every
+// API call becomes a relative URL like ``/api/v1/...``. The browser
+// then hits the storefront origin (``www.ardezan.com``), Vercel's
+// edge proxy forwards it to Railway via the ``rewrites()`` block in
+// ``next.config.ts``. Net effect: the API appears same-origin, so
+// session cookies are first-party and CORS goes away entirely.
+//
+// In dev we keep the absolute URL because there's nothing in front of
+// the Next dev server to proxy through.
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
 

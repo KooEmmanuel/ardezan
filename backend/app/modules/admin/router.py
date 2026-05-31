@@ -73,18 +73,15 @@ def _set_admin_cookie(response: Response, admin_id: str, role: str) -> datetime:
         settings.session_secret_admin,
         salt=ADMIN_COOKIE_SALT,
     )
-    # See _set_customer_cookie for the full reasoning behind ``SameSite``
-    # + cookie domain choice. Same shape here for the admin cookie.
-    cookie_domain = settings.session_cookie_domain or None
-    same_site = "lax" if cookie_domain or not settings.is_production else "none"
+    # Same first-party cookie pattern as the customer cookie — see
+    # _set_customer_cookie for the rationale.
     response.set_cookie(
         key=ADMIN_COOKIE_NAME,
         value=token,
         max_age=ADMIN_SESSION_TTL,
         httponly=True,
-        samesite=same_site,
+        samesite="lax",
         secure=settings.is_production,
-        domain=cookie_domain,
         path="/",
     )
     return datetime.now(timezone.utc) + timedelta(seconds=ADMIN_SESSION_TTL)
@@ -131,12 +128,7 @@ async def admin_logout(
         ip_address=meta.get("ip"),
         user_agent=meta.get("ua"),
     )
-    settings = get_settings()
-    response.delete_cookie(
-        ADMIN_COOKIE_NAME,
-        path="/",
-        domain=settings.session_cookie_domain or None,
-    )
+    response.delete_cookie(ADMIN_COOKIE_NAME, path="/")
     return {"status": "ok"}
 
 

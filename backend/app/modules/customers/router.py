@@ -67,23 +67,18 @@ def _set_customer_cookie(response: Response, customer_id: str) -> datetime:
         settings.session_secret_customer,
         salt=CUSTOMER_COOKIE_SALT,
     )
-    # Cookie domain + SameSite choice depends on how the storefront
-    # and API are wired:
-    # - Same eTLD+1 (e.g. ``www.ardezan.com`` storefront + ``api.ardezan.com``
-    #   API, with SESSION_COOKIE_DOMAIN=".ardezan.com"): use SameSite=Lax,
-    #   browser sends the cookie to both. Cleaner, less CSRF surface.
-    # - Cross-site (Vercel + raw Railway URL): fall back to SameSite=None
-    #   so the browser allows cross-site send.
-    cookie_domain = settings.session_cookie_domain or None
-    same_site = "lax" if cookie_domain or not settings.is_production else "none"
+    # The frontend (Vercel) proxies ``/api/*`` through to this backend,
+    # so from the browser's perspective both live on the same origin.
+    # That means a plain ``SameSite=Lax`` first-party cookie works
+    # everywhere — no ``Domain=`` attribute, no ``SameSite=None``,
+    # minimum CSRF surface.
     response.set_cookie(
         key=CUSTOMER_COOKIE_NAME,
         value=token,
         max_age=CUSTOMER_SESSION_TTL,
         httponly=True,
-        samesite=same_site,
+        samesite="lax",
         secure=settings.is_production,
-        domain=cookie_domain,
         path="/",
     )
     return datetime.now(timezone.utc) + timedelta(seconds=CUSTOMER_SESSION_TTL)
@@ -154,12 +149,7 @@ async def customer_logout(
     response: Response,
     customer: CustomerDep,
 ) -> dict[str, str]:
-    settings = get_settings()
-    response.delete_cookie(
-        CUSTOMER_COOKIE_NAME,
-        path="/",
-        domain=settings.session_cookie_domain or None,
-    )
+    response.delete_cookie(CUSTOMER_COOKIE_NAME, path="/")
     return {"status": "ok"}
 
 

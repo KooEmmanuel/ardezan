@@ -13,8 +13,18 @@ import type {
   TryOnSessionDetail,
 } from "@/lib/types";
 
+// Server-side fetches go straight to Railway, NOT through the
+// /api/* Vercel rewrite. Two reasons:
+//   1. Going through the rewrite from inside a Vercel function would
+//      route Vercel → Vercel → Railway — needless extra hop.
+//   2. We pick the host from ``BACKEND_PROXY_URL`` (server-only env,
+//      not baked into the client bundle), so the Railway hostname
+//      stays off the public JS.
+// Falls back to the public base URL, then to localhost in dev.
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+  process.env.BACKEND_PROXY_URL?.replace(/\/$/, "") ||
+  process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
+  "http://localhost:8000";
 
 // Next dedupes identical fetches automatically within a single render. The
 // ``revalidate`` window lets the same server render cache stay warm for the

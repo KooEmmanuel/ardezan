@@ -21,6 +21,7 @@ from typing import Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from app.config import get_settings
+from app.db import C
 from app.errors import ApiError, ErrorCode
 from app.logging_setup import get_logger
 from app.modules.admin.ai_repository import AiSettingsRepository

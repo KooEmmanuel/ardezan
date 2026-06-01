@@ -281,12 +281,17 @@ function BespokeShowcase() {
               style={{ background: gradient ?? "var(--ivory)" }}
             >
               {heroUrl ? (
+                // ``unoptimized`` skips Vercel's image optimizer for
+                // these static, pre-sized PNGs. On mobile srcset, the
+                // optimizer was throttling and the tiles fell back to
+                // their gradient backdrop.
                 <Image
                   alt={ins.title}
                   className="object-cover"
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   src={heroUrl}
+                  unoptimized
                 />
               ) : null}
               <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent" />

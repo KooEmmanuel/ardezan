@@ -102,6 +102,7 @@ export default async function HomePage() {
                   fill
                   sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                   src={slotUrl(tile.slot)}
+                  unoptimized
                 />
                 <div className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/55 to-transparent text-white z-10">
                   <div className="font-display text-xl">{tile.label}</div>
@@ -148,6 +149,7 @@ export default async function HomePage() {
                     fill
                     sizes="(max-width: 1024px) 100vw, 50vw"
                     src={slotUrl("editorial_no_01")}
+                    unoptimized
                   />
                 </div>
               </div>

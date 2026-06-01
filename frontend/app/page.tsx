@@ -10,11 +10,7 @@ import { HomeHero } from "@/components/home-hero";
 import { TryOnButton } from "@/components/try-on-button";
 import { formatMoney } from "@/lib/api";
 import { serverApi } from "@/lib/server-api";
-import type {
-  ProductListItem,
-  SiteMediaResponse,
-  SiteMediaSlot,
-} from "@/lib/types";
+import type { ProductListItem, SiteMediaSlot } from "@/lib/types";
 
 // Rendered per request, not at build time. ISR (revalidate=60) would
 // pre-fetch from the API during ``next build`` and fail the Vercel
@@ -23,20 +19,25 @@ import type {
 // and survives backend hiccups during deploys.
 export const dynamic = "force-dynamic";
 
-// Picsum fallbacks for slots the admin hasn't generated yet.
-const PICSUM_FALLBACK: Record<SiteMediaSlot, string> = {
-  hero_look_01:         "https://picsum.photos/seed/atelier-look-01/600/750?grayscale",
-  hero_look_02:         "https://picsum.photos/seed/atelier-look-02/600/750?grayscale",
-  hero_look_03:         "https://picsum.photos/seed/atelier-look-03/600/750?grayscale",
-  hero_look_04:         "https://picsum.photos/seed/atelier-look-04/600/750?grayscale",
-  hero_look_05:         "https://picsum.photos/seed/atelier-look-05/600/750?grayscale",
-  hero_look_06:         "https://picsum.photos/seed/atelier-look-06/600/750?grayscale",
-  hero_mobile:          "https://picsum.photos/seed/atelier-look-mobile/720/480?grayscale",
-  category_women:       "https://picsum.photos/seed/cat-women/720/480?grayscale",
-  category_men:         "https://picsum.photos/seed/cat-men/720/480?grayscale",
-  category_new:         "https://picsum.photos/seed/cat-new/720/480?grayscale",
-  category_accessories: "https://picsum.photos/seed/cat-acc/720/480?grayscale",
-  editorial_no_01:      "https://picsum.photos/seed/atelier-editorial/720/900?grayscale",
+// Static, bundled brand assets live under ``public/site/``. Served by
+// Vercel's CDN — no daily egress cap, no signed-URL refresh, no extra
+// API round-trip. Used as both the default ``slotUrl`` value and the
+// fallback inside HomeHero. If you ever want admin-configurable hero
+// imagery, the ``site_media`` API still exists; just route specific
+// slots through it instead of returning these statics.
+const STATIC_FALLBACK: Record<SiteMediaSlot, string> = {
+  hero_look_01:         "/site/hero_look_01.png",
+  hero_look_02:         "/site/hero_look_02.png",
+  hero_look_03:         "/site/hero_look_03.png",
+  hero_look_04:         "/site/hero_look_04.png",
+  hero_look_05:         "/site/hero_look_05.png",
+  hero_look_06:         "/site/hero_look_06.png",
+  hero_mobile:          "/site/hero_mobile.png",
+  category_women:       "/site/category_women.png",
+  category_men:         "/site/category_men.png",
+  category_new:         "/site/category_new.png",
+  category_accessories: "/site/category_accessories.png",
+  editorial_no_01:      "/site/editorial_no_01.png",
 };
 
 const CATEGORY_TILES: { label: string; href: string; slot: SiteMediaSlot }[] = [
@@ -47,21 +48,16 @@ const CATEGORY_TILES: { label: string; href: string; slot: SiteMediaSlot }[] = [
 ];
 
 export default async function HomePage() {
-  // Parallel fetches on the server — both finished before HTML is generated.
-  const [productsResponse, siteMediaResponse] = await Promise.allSettled([
-    serverApi.listProducts({ limit: 12 }),
-    serverApi.getSiteMedia(),
-  ]);
+  // Single server fetch — products only. Site imagery is now static
+  // (see ``STATIC_FALLBACK`` above), so we skip the /site/media call
+  // entirely. One less network hop, one less surface for the homepage
+  // to break on.
+  const productsResponse = await serverApi
+    .listProducts({ limit: 12 })
+    .catch(() => ({ items: [] as ProductListItem[] }));
+  const products: ProductListItem[] = productsResponse.items;
 
-  const products: ProductListItem[] =
-    productsResponse.status === "fulfilled" ? productsResponse.value.items : [];
-  const siteMedia: SiteMediaResponse["slots"] =
-    siteMediaResponse.status === "fulfilled"
-      ? siteMediaResponse.value.slots
-      : ({} as SiteMediaResponse["slots"]);
-
-  const slotUrl = (slot: SiteMediaSlot): string =>
-    siteMedia[slot] ?? PICSUM_FALLBACK[slot];
+  const slotUrl = (slot: SiteMediaSlot): string => STATIC_FALLBACK[slot];
 
   const newThisWeek = products.slice(0, 4);
   const bestSellers = products.slice(4, 8);
@@ -71,9 +67,9 @@ export default async function HomePage() {
       {/* Hero is interactive (form + cycling cascade) → client island */}
       <HomeHero
         initialSiteMedia={
-          { ...PICSUM_FALLBACK, ...siteMedia } as Record<SiteMediaSlot, string | null>
+          STATIC_FALLBACK as Record<SiteMediaSlot, string | null>
         }
-        picsumFallback={PICSUM_FALLBACK}
+        picsumFallback={STATIC_FALLBACK}
       />
 
       {/* ─── Shop by category ─── */}

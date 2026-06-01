@@ -34,6 +34,10 @@ const PIECE_LABELS: { value: PieceType; label: string }[] = [
   { value: "blazer", label: "Blazer" },
   { value: "overshirt", label: "Overshirt" },
   { value: "coat", label: "Coat" },
+  { value: "caftan", label: "Caftan" },
+  { value: "agbada", label: "Agbada" },
+  { value: "dashiki", label: "Dashiki" },
+  { value: "kaba", label: "Kaba" },
 ];
 
 const COMPLEXITY_OPTIONS: {

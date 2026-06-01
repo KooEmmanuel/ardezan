@@ -42,6 +42,12 @@ _YARDAGE_BY_PIECE: dict[PieceType, float] = {
     "blazer": 3.0,
     "coat": 4.0,
     "overshirt": 2.8,
+    # African pieces tend to use more fabric — full silhouettes, layered
+    # construction, traditional cuts. Numbers based on common patterns.
+    "caftan": 3.5,
+    "agbada": 6.0,    # three-piece ensemble (boubou + dansiki + sokoto)
+    "dashiki": 2.2,
+    "kaba": 4.5,      # full kaba & slit ensemble
 }
 
 # Flat tailoring fee per piece type, in cents. Reflects what a US-based
@@ -57,6 +63,12 @@ _BASE_TAILORING_BY_PIECE: dict[PieceType, int] = {
     "blazer": 22_000,
     "coat": 28_000,      # $280
     "overshirt": 14_000, # $140
+    # African pieces — handmade construction, often hand-finished. Prices
+    # reflect typical Bonwire-tailor rates × a modest US markup.
+    "caftan": 15_000,    # $150
+    "agbada": 38_000,    # $380 (three-piece + embroidery margin)
+    "dashiki": 9_000,    # $90
+    "kaba": 22_000,      # $220 (kaba + slit set)
 }
 
 _COMPLEXITY_MULTIPLIER: dict[Complexity, float] = {

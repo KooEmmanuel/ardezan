@@ -402,6 +402,34 @@ export type AdminOrderTryOnResponse = {
   looks: AdminOrderTryOnLook[];
 };
 
+export type AdminFabric = {
+  fabric_id: string;
+  name: string;
+  description: string;
+  color_family: string;
+  cost_per_yard_amount: number;
+  currency: string;
+  suitable_for: string[];
+  swatch: { gradient: string | null; image_url: string | null };
+  weight: "light" | "medium" | "heavy";
+  finish: string | null;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminFabricUpdate = {
+  name?: string;
+  description?: string;
+  color_family?: string;
+  cost_per_yard_amount?: number;
+  suitable_for?: string[];
+  weight?: "light" | "medium" | "heavy";
+  finish?: string | null;
+  gradient?: string | null;
+  active?: boolean;
+};
+
 export type AdminAISettings = {
   kill_switch_enabled: boolean;
   daily_spend_ceiling_amount: number;
@@ -624,6 +652,30 @@ export const adminApi = {
     }>(
       `/api/v1/admin/orders/${encodeURIComponent(id)}/custom-designs`,
     ),
+
+  // ── Fabrics ────────────────────────────────────────────────
+  listFabrics: () =>
+    fetchAdmin<{ items: AdminFabric[] }>("/api/v1/admin/fabrics"),
+
+  getFabric: (id: string) =>
+    fetchAdmin<AdminFabric>(
+      `/api/v1/admin/fabrics/${encodeURIComponent(id)}`,
+    ),
+
+  patchFabric: (id: string, body: AdminFabricUpdate) =>
+    fetchAdmin<AdminFabric>(
+      `/api/v1/admin/fabrics/${encodeURIComponent(id)}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    ),
+
+  deleteFabric: (id: string) =>
+    fetchAdmin<null>(
+      `/api/v1/admin/fabrics/${encodeURIComponent(id)}`,
+      { method: "DELETE" },
+    ),
+
+  // Create + upload-swatch use multipart so we drive the fetch
+  // manually instead of going through ``fetchAdmin``'s JSON helper.
 
   getAISettings: () =>
     fetchAdmin<AdminAISettings>("/api/v1/admin/settings/ai"),

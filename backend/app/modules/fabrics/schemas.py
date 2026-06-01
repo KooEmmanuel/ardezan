@@ -28,6 +28,12 @@ PieceType = Literal[
     "coat",
     "overshirt",
     "tee",
+    # African pieces — brand-relevant additions. Yardage + tailoring
+    # fee tables in ``pricing.py`` carry sensible defaults for these.
+    "caftan",
+    "agbada",
+    "dashiki",
+    "kaba",
 ]
 
 

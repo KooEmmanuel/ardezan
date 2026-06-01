@@ -355,7 +355,11 @@ export type PieceType =
   | "blazer"
   | "coat"
   | "overshirt"
-  | "tee";
+  | "tee"
+  | "caftan"
+  | "agbada"
+  | "dashiki"
+  | "kaba";
 
 export type Complexity = "simple" | "standard" | "intricate";
 

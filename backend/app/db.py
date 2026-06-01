@@ -45,6 +45,7 @@ class C:
     settings = "settings"
     fabrics = "fabrics"
     design_sessions = "design_sessions"
+    design_inspirations = "design_inspirations"
 
 
 # ── Index declarations (mirrors DATA_MODEL.md sections 4-10) ────────

@@ -304,6 +304,22 @@ export const api = {
   listFabrics: () =>
     apiFetch<{ items: FabricPublic[] }>("/api/v1/fabrics"),
 
+  listInspirations: () =>
+    apiFetch<{
+      items: {
+        inspiration_id: string;
+        fabric_id: string;
+        piece_type: PieceType;
+        complexity: Complexity;
+        title: string;
+        tagline: string;
+        brief: string;
+        fit_note: string | null;
+        image_url: string | null;
+        gradient: string | null;
+      }[];
+    }>("/api/v1/inspirations"),
+
   estimateFabric: (
     fabricId: string,
     piece_type: PieceType,

@@ -98,6 +98,7 @@ const SECTIONS: Section[] = [
       { href: "/admin/products", label: "Products", icon: Icon.products, match: "prefix" },
       { href: "/admin/inventory", label: "Inventory", icon: Icon.inventory, match: "prefix" },
       { href: "/admin/fabrics", label: "Fabrics", icon: Icon.products, match: "prefix" },
+      { href: "/admin/inspirations", label: "Inspirations", icon: Icon.products, match: "prefix" },
     ],
   },
   {

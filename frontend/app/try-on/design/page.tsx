@@ -8,12 +8,21 @@ import { useToast } from "@/components/toast";
 import { ensureAnonId } from "@/lib/anon";
 import { api, formatMoney } from "@/lib/api";
 import { addCustomDesignToCart } from "@/lib/cart";
-import {
-  DESIGN_INSPIRATIONS,
-  INSPIRATION_IMAGES,
-  findInspiration,
-  type DesignInspiration,
-} from "@/lib/design-inspirations";
+// Inspirations come from the admin-managed Mongo collection now.
+// We define the local shape here; the live ``DesignInspiration`` type
+// stays for backwards compat with any older references.
+type DesignInspiration = {
+  inspiration_id: string;
+  fabric_id: string;
+  piece_type: PieceType;
+  complexity: Complexity;
+  title: string;
+  tagline: string;
+  brief: string;
+  fit_note: string | null;
+  image_url: string | null;
+  gradient: string | null;
+};
 import { loadPhoto } from "@/lib/photo-cache";
 import type {
   Complexity,
@@ -64,16 +73,25 @@ function DesignMeInner() {
   const search = useSearchParams();
   const { toast } = useToast();
 
-  // Deep-link prefill — ``?inspiration=<id>`` lets the catalog Bespoke
-  // tiles, or any external link, route here with the form ready to go.
-  const inspirationFromUrl = useMemo(
-    () => findInspiration(search.get("inspiration")),
-    [search],
-  );
+  const inspirationIdFromUrl = search.get("inspiration");
 
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoLoading, setPhotoLoading] = useState(true);
   const [fabrics, setFabrics] = useState<FabricPublic[]>([]);
+  const [inspirations, setInspirations] = useState<DesignInspiration[]>([]);
+
+  // Deep-link prefill — ``?inspiration=<id>`` lets the catalog Bespoke
+  // tiles route here with the form ready to go. Resolved against the
+  // ``inspirations`` state once it loads.
+  const inspirationFromUrl = useMemo(
+    () =>
+      inspirationIdFromUrl
+        ? inspirations.find(
+            (i) => i.inspiration_id === inspirationIdFromUrl,
+          ) ?? null
+        : null,
+    [inspirationIdFromUrl, inspirations],
+  );
   const [selectedFabric, setSelectedFabric] = useState<FabricPublic | null>(null);
   const [pieceType, setPieceType] = useState<PieceType | null>(null);
   const [complexity, setComplexity] = useState<Complexity>("standard");
@@ -133,15 +151,28 @@ function DesignMeInner() {
 
   useEffect(() => {
     let cancelled = false;
-    void api
-      .listFabrics()
-      .then((r) => {
+    Promise.all([api.listFabrics(), api.listInspirations()])
+      .then(([fabricsR, insR]) => {
         if (cancelled) return;
-        setFabrics(r.items);
+        setFabrics(fabricsR.items);
+        setInspirations(
+          insR.items.map((i) => ({
+            inspiration_id: i.inspiration_id,
+            fabric_id: i.fabric_id,
+            piece_type: i.piece_type,
+            complexity: i.complexity,
+            title: i.title,
+            tagline: i.tagline,
+            brief: i.brief,
+            fit_note: i.fit_note,
+            image_url: i.image_url,
+            gradient: i.gradient,
+          })),
+        );
       })
       .catch((err) =>
         toast({
-          title: "Couldn't load fabrics.",
+          title: "Couldn't load Design Me.",
           description: err instanceof Error ? err.message : undefined,
           kind: "error",
         }),
@@ -370,16 +401,16 @@ function DesignMeInner() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  {DESIGN_INSPIRATIONS.map((ins) => {
+                  {inspirations.map((ins) => {
                     const fab = fabrics.find(
                       (f) => f.fabric_id === ins.fabric_id,
                     );
                     if (!fab) return null;
-                    const heroUrl = INSPIRATION_IMAGES[ins.id];
+                    const heroUrl = ins.image_url;
                     return (
                       <button
                         className="text-left rounded-xl overflow-hidden border bg-[color:var(--paper)] hover:shadow-md transition group"
-                        key={ins.id}
+                        key={ins.inspiration_id}
                         onClick={() => applyInspiration(ins)}
                         style={{ borderColor: "var(--line)" }}
                         type="button"

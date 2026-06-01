@@ -402,6 +402,36 @@ export type AdminOrderTryOnResponse = {
   looks: AdminOrderTryOnLook[];
 };
 
+export type AdminInspiration = {
+  inspiration_id: string;
+  fabric_id: string;
+  piece_type: string;
+  complexity: "simple" | "standard" | "intricate";
+  title: string;
+  tagline: string;
+  brief: string;
+  fit_note: string | null;
+  image_url: string | null;
+  gradient: string | null;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AdminInspirationUpdate = {
+  fabric_id?: string;
+  piece_type?: string;
+  complexity?: "simple" | "standard" | "intricate";
+  title?: string;
+  tagline?: string;
+  brief?: string;
+  fit_note?: string | null;
+  gradient?: string | null;
+  active?: boolean;
+  sort_order?: number;
+};
+
 export type AdminFabric = {
   fabric_id: string;
   name: string;
@@ -651,6 +681,27 @@ export const adminApi = {
       }[];
     }>(
       `/api/v1/admin/orders/${encodeURIComponent(id)}/custom-designs`,
+    ),
+
+  // ── Inspirations ───────────────────────────────────────────
+  listInspirations: () =>
+    fetchAdmin<{ items: AdminInspiration[] }>("/api/v1/admin/inspirations"),
+
+  getInspiration: (id: string) =>
+    fetchAdmin<AdminInspiration>(
+      `/api/v1/admin/inspirations/${encodeURIComponent(id)}`,
+    ),
+
+  patchInspiration: (id: string, body: AdminInspirationUpdate) =>
+    fetchAdmin<AdminInspiration>(
+      `/api/v1/admin/inspirations/${encodeURIComponent(id)}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    ),
+
+  deleteInspiration: (id: string) =>
+    fetchAdmin<null>(
+      `/api/v1/admin/inspirations/${encodeURIComponent(id)}`,
+      { method: "DELETE" },
     ),
 
   // ── Fabrics ────────────────────────────────────────────────

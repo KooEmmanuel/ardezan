@@ -27,6 +27,7 @@ from app.modules.checkout.router import router as checkout_router
 from app.modules.customers.router import router as customers_router
 from app.modules.design.router import router as design_router
 from app.modules.fabrics.router import router as fabrics_router
+from app.modules.inspirations.router import router as inspirations_router
 from app.modules.orders.router import router as orders_router
 from app.modules.site.router import router as site_router
 from app.modules.storage_files.router import router as storage_files_router
@@ -175,6 +176,7 @@ app.include_router(cart_router, prefix="/api/v1/cart", tags=["cart"])
 app.include_router(customers_router, prefix="/api/v1", tags=["customers"])
 app.include_router(checkout_router, prefix="/api/v1/checkout", tags=["checkout"])
 app.include_router(fabrics_router, prefix="/api/v1", tags=["fabrics"])
+app.include_router(inspirations_router, prefix="/api/v1", tags=["inspirations"])
 app.include_router(design_router, prefix="/api/v1", tags=["design-me"])
 app.include_router(orders_router, prefix="/api/v1/orders", tags=["orders"])
 app.include_router(try_on_router, prefix="/api/v1/try-on", tags=["try-on"])

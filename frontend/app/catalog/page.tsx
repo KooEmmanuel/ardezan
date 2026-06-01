@@ -7,11 +7,7 @@ import Link from "next/link";
 
 import { TryOnButton } from "@/components/try-on-button";
 import { formatMoney } from "@/lib/api";
-import {
-  DESIGN_INSPIRATIONS,
-  FABRIC_GRADIENTS,
-  INSPIRATION_IMAGES,
-} from "@/lib/design-inspirations";
+import { FABRIC_GRADIENTS } from "@/lib/design-inspirations";
 import { serverApi } from "@/lib/server-api";
 import type { ProductListItem } from "@/lib/types";
 
@@ -71,24 +67,27 @@ export default async function CatalogPage({
 }) {
   const { cat, q } = await searchParams;
 
-  // The Bespoke category is curated client-side from the design
-  // inspirations — it doesn't go to the backend. Render its own
-  // showcase instead of the standard product grid.
+  // The Bespoke category renders the admin-managed design inspirations
+  // (Mongo collection ``design_inspirations``) instead of the catalog
+  // product grid.
   const isBespoke = (cat ?? "").toLowerCase() === "bespoke";
 
-  const [categoriesResp, productsResp] = await Promise.allSettled([
+  const [categoriesResp, productsResp, inspirationsResp] = await Promise.allSettled([
     serverApi.listCategories(),
     // Skip the product fetch when the customer asked for Bespoke —
     // there are no catalog products to return.
     isBespoke
       ? Promise.resolve({ items: [] as ProductListItem[] })
       : serverApi.listProducts({ category: cat, q, limit: 60 }),
+    isBespoke ? serverApi.listInspirations() : Promise.resolve({ items: [] }),
   ]);
 
   const categories: string[] =
     categoriesResp.status === "fulfilled" ? categoriesResp.value.categories : [];
   const products: ProductListItem[] =
     productsResp.status === "fulfilled" ? productsResp.value.items : [];
+  const inspirations =
+    inspirationsResp.status === "fulfilled" ? inspirationsResp.value.items : [];
 
   const activeCat = cat ?? "";
 
@@ -158,7 +157,7 @@ export default async function CatalogPage({
       </div>
 
       {isBespoke ? (
-        <BespokeShowcase />
+        <BespokeShowcase inspirations={inspirations} />
       ) : products.length === 0 ? (
         <div className="card-solid p-10 text-center">
           <div className="font-display text-2xl mb-2">Nothing here yet.</div>
@@ -260,37 +259,57 @@ function CatalogTile({ product }: { product: ProductListItem }) {
 }
 
 // ── Bespoke ─────────────────────────────────────────────────────────
-// Curated made-to-order showcase. Each tile deep-links into the
-// Design Me flow with the form pre-filled (?inspiration=<id>).
-function BespokeShowcase() {
+// Made-to-order showcase. Data comes from the admin-managed
+// ``design_inspirations`` collection via /api/v1/inspirations.
+// Each tile deep-links into Design Me with the form pre-filled.
+type BespokeTile = {
+  inspiration_id: string;
+  fabric_id: string;
+  piece_type: string;
+  complexity: string;
+  title: string;
+  tagline: string;
+  image_url: string | null;
+  gradient: string | null;
+};
+
+function BespokeShowcase({ inspirations }: { inspirations: BespokeTile[] }) {
+  if (inspirations.length === 0) {
+    return (
+      <div className="card-solid p-10 text-center">
+        <div className="font-display text-2xl mb-2">No bespoke pieces yet.</div>
+        <p className="text-[color:var(--muted)]">
+          Add some in <Link className="underline underline-offset-2" href="/admin/inspirations">admin → inspirations</Link>.
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {DESIGN_INSPIRATIONS.map((ins) => {
+      {inspirations.map((ins) => {
         const fab = FABRIC_GRADIENTS[ins.fabric_id];
-        const gradient = ins.gradient ?? fab?.gradient;
+        const gradient = ins.gradient ?? fab?.gradient ?? null;
         const fabricName = fab?.name ?? "";
-        const heroUrl = INSPIRATION_IMAGES[ins.id];
         return (
           <Link
             className="card-solid overflow-hidden block product-card"
-            href={`/try-on/design?inspiration=${encodeURIComponent(ins.id)}`}
-            key={ins.id}
+            href={`/try-on/design?inspiration=${encodeURIComponent(ins.inspiration_id)}`}
+            key={ins.inspiration_id}
           >
             <div
               className="ratio-45 relative overflow-hidden"
               style={{ background: gradient ?? "var(--ivory)" }}
             >
-              {heroUrl ? (
+              {ins.image_url ? (
                 // ``unoptimized`` skips Vercel's image optimizer for
-                // these static, pre-sized PNGs. On mobile srcset, the
-                // optimizer was throttling and the tiles fell back to
-                // their gradient backdrop.
+                // these pre-sized PNGs (the optimizer was throttling
+                // on mobile srcset and falling back to gradient).
                 <Image
                   alt={ins.title}
                   className="object-cover"
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  src={heroUrl}
+                  src={ins.image_url}
                   unoptimized
                 />
               ) : null}

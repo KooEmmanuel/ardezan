@@ -101,6 +101,27 @@ export const serverApi = {
     return (await r.json()) as TryOnSessionDetail;
   },
 
+  listInspirations: async () => {
+    const r = await fetch(`${API_BASE_URL}/api/v1/inspirations`, {
+      cache: "no-store",
+    });
+    if (!r.ok) return { items: [] };
+    return (await r.json()) as {
+      items: {
+        inspiration_id: string;
+        fabric_id: string;
+        piece_type: string;
+        complexity: string;
+        title: string;
+        tagline: string;
+        brief: string;
+        fit_note: string | null;
+        image_url: string | null;
+        gradient: string | null;
+      }[];
+    };
+  },
+
   listMyOrders: async (cookie: string, params?: { limit?: number; offset?: number }) => {
     const qs = new URLSearchParams();
     if (params?.limit) qs.set("limit", String(params.limit));

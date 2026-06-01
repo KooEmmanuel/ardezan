@@ -75,6 +75,12 @@ function DesignMeInner() {
   const [complexity, setComplexity] = useState<Complexity>("standard");
   const [brief, setBrief] = useState("");
   const [fitNote, setFitNote] = useState("");
+  // Optional style reference upload — Pinterest screenshot, sketch,
+  // a photo of a similar piece. Passed to Gemini and to the tailor.
+  const [styleReference, setStyleReference] = useState<File | null>(null);
+  const [styleReferencePreview, setStyleReferencePreview] = useState<
+    string | null
+  >(null);
 
   const [estimate, setEstimate] = useState<CostBreakdown | null>(null);
   const [estimateLoading, setEstimateLoading] = useState(false);
@@ -211,6 +217,7 @@ function DesignMeInner() {
     try {
       const anonId = ensureAnonId();
       const r = await api.createDesignSession(photo, {
+        style_reference: styleReference ?? undefined,
         fabric_id: selectedFabric.fabric_id,
         piece_type: pieceType,
         complexity,
@@ -231,7 +238,7 @@ function DesignMeInner() {
     } finally {
       setSubmitting(false);
     }
-  }, [photo, selectedFabric, pieceType, complexity, brief, fitNote]);
+  }, [photo, selectedFabric, pieceType, complexity, brief, fitNote, styleReference]);
 
   // Pre-fill the form from a curated starting point. The fabric must
   // already be loaded so we can resolve the inspiration's fabric_id;
@@ -561,6 +568,65 @@ function DesignMeInner() {
                   />
                 </div>
 
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-[color:var(--muted)] mb-2">
+                    Style reference (optional)
+                  </div>
+                  <p className="text-[11px] text-[color:var(--muted)] leading-snug mb-2">
+                    Pinterest screenshot, a photo of a piece you like,
+                    or a quick sketch. We use it to guide the silhouette
+                    and pass it on to the tailor.
+                  </p>
+                  {styleReferencePreview ? (
+                    <div className="flex items-center gap-3 mb-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        alt="Style reference preview"
+                        className="w-16 h-16 object-cover rounded-md border border-[color:var(--line)]"
+                        src={styleReferencePreview}
+                      />
+                      <button
+                        className="btn-ghost text-[11px] underline underline-offset-2"
+                        onClick={() => {
+                          if (styleReferencePreview) {
+                            URL.revokeObjectURL(styleReferencePreview);
+                          }
+                          setStyleReferencePreview(null);
+                          setStyleReference(null);
+                        }}
+                        type="button"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ) : null}
+                  <input
+                    accept="image/jpeg,image/png,image/webp,image/heic"
+                    aria-label="Style reference image"
+                    className="block w-full text-[11px] text-[color:var(--ink-soft)] file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-[color:var(--ivory)] file:text-[color:var(--ink)] file:cursor-pointer cursor-pointer"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null;
+                      if (styleReferencePreview) {
+                        URL.revokeObjectURL(styleReferencePreview);
+                      }
+                      if (file) {
+                        if (file.size > 8 * 1024 * 1024) {
+                          setError(
+                            "Style reference is too large — please pick something under 8 MB.",
+                          );
+                          return;
+                        }
+                        setStyleReference(file);
+                        setStyleReferencePreview(URL.createObjectURL(file));
+                      } else {
+                        setStyleReference(null);
+                        setStyleReferencePreview(null);
+                      }
+                    }}
+                    type="file"
+                  />
+                </div>
+
                 <div
                   className="rounded-lg border p-3"
                   style={{
@@ -687,6 +753,11 @@ function DesignMeInner() {
                         setResult(null);
                         setBrief("");
                         setFitNote("");
+                        if (styleReferencePreview) {
+                          URL.revokeObjectURL(styleReferencePreview);
+                        }
+                        setStyleReference(null);
+                        setStyleReferencePreview(null);
                       }}
                       type="button"
                     >

@@ -617,6 +617,7 @@ export const adminApi = {
           currency: string;
         };
         image_url: string | null;
+        reference_image_url?: string | null;
         unit_price_amount?: number;
         created_at?: string;
       }[];

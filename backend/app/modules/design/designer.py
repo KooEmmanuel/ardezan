@@ -94,12 +94,22 @@ def build_design_prompt(
     brief: str,
     fit_note: str | None,
     fabric_snapshot: dict[str, Any],
+    has_style_reference: bool = False,
 ) -> str:
     fabric_desc = _describe_fabric(fabric_snapshot)
     fit_line = f"Fit: {fit_note}." if fit_note else ""
+    reference_line = (
+        "\nA second image follows the customer's photo — use it as a "
+        "stylistic reference for the piece's silhouette, drape, and "
+        "detailing. Match the spirit of the reference but do not copy "
+        "patterns, branding, text, or any garments worn by other people "
+        "in it.\n"
+        if has_style_reference
+        else ""
+    )
     return (
-        f"Render the person from the reference photo wearing a custom "
-        f"{piece_type} they have designed.\n\n"
+        f"Render the person from the FIRST image (their photo) wearing a "
+        f"custom {piece_type} they have designed.{reference_line}\n"
         f"The piece: {brief.strip()}\n"
         f"The fabric: {fabric_desc}.\n"
         f"{fit_line}\n\n"
@@ -140,20 +150,37 @@ async def render_design(
     brief: str,
     fit_note: str | None,
     fabric_snapshot: dict[str, Any],
+    # When provided, the customer attached a style reference image
+    # (Pinterest screenshot, similar piece, sketch). Passed as the
+    # second image to Gemini; the prompt tells the model how to use it.
+    reference_bytes: bytes | None = None,
+    reference_content_type: str | None = None,
 ) -> tuple[bytes, str, dict[str, Any]]:
     """Single Nano Banana call. Returns ``(image_bytes, mime, provider_call)``."""
     settings = get_settings()
     client = get_gemini_client()
     model_name = settings.gemini_model_designer
+    has_reference = bool(reference_bytes and reference_content_type)
     prompt = build_design_prompt(
         piece_type=piece_type,
         brief=brief,
         fit_note=fit_note,
         fabric_snapshot=fabric_snapshot,
+        has_style_reference=has_reference,
     )
-    image_part = types.Part.from_bytes(
-        data=photo_bytes, mime_type=photo_content_type
-    )
+    parts: list[Any] = [
+        types.Part.from_bytes(
+            data=photo_bytes, mime_type=photo_content_type
+        )
+    ]
+    if has_reference:
+        parts.append(
+            types.Part.from_bytes(
+                data=reference_bytes, mime_type=reference_content_type
+            )
+        )
+    parts.append(prompt)
+
     config = types.GenerateContentConfig(
         response_modalities=["IMAGE"],
         temperature=0.6,
@@ -164,7 +191,7 @@ async def render_design(
     try:
         response = await client.aio.models.generate_content(
             model=model_name,
-            contents=[image_part, prompt],
+            contents=parts,
             config=config,
         )
     except Exception as exc:  # noqa: BLE001

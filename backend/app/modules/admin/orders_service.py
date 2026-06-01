@@ -152,16 +152,20 @@ class AdminOrdersService:
                 )
                 continue
 
-            image_url: str | None = None
-            gen_id = s.get("generated_media_asset_id")
-            if gen_id:
+            async def _signed_for(media_asset_id: str | None) -> str | None:
+                if not media_asset_id:
+                    return None
                 media = await self.db[C.media_assets].find_one(
-                    {"media_asset_id": gen_id}, projection={"storage": 1, "_id": 0}
+                    {"media_asset_id": media_asset_id},
+                    projection={"storage": 1, "_id": 0},
                 )
-                if media and (media.get("storage") or {}).get("object_key"):
-                    image_url = await storage.presigned_get_url(
-                        media["storage"]["object_key"], expires_in=3600
-                    )
+                key = (media or {}).get("storage", {}).get("object_key")
+                if not key:
+                    return None
+                return await storage.presigned_get_url(key, expires_in=3600)
+
+            image_url = await _signed_for(s.get("generated_media_asset_id"))
+            reference_image_url = await _signed_for(s.get("reference_media_asset_id"))
 
             results.append(
                 {
@@ -176,6 +180,7 @@ class AdminOrdersService:
                     "fit_note": s.get("fit_note"),
                     "estimate": s.get("estimate"),
                     "image_url": image_url,
+                    "reference_image_url": reference_image_url,
                     "unit_price_amount": line.get("unit_price_amount"),
                     "created_at": s.get("created_at"),
                 }

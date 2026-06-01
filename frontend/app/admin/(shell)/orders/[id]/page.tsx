@@ -312,6 +312,7 @@ type CustomDesign = {
     currency: string;
   };
   image_url: string | null;
+  reference_image_url?: string | null;
   unit_price_amount?: number;
 };
 
@@ -329,19 +330,37 @@ function CustomDesigns({ designs }: { designs: CustomDesign[] }) {
             key={d.line_id}
             style={{ borderColor: "var(--line)" }}
           >
-            <div className="relative w-28 h-36 sm:w-32 sm:h-40 rounded-md overflow-hidden bg-[color:var(--ivory)] border border-[color:var(--line)] shrink-0">
-              {d.image_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  alt={d.title_snapshot ?? "Custom design"}
-                  className="w-full h-full object-cover"
-                  src={d.image_url}
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-[10px] text-[color:var(--muted)] p-2 text-center">
-                  Render unavailable
+            <div className="flex flex-col gap-2 shrink-0">
+              <div className="relative w-28 h-36 sm:w-32 sm:h-40 rounded-md overflow-hidden bg-[color:var(--ivory)] border border-[color:var(--line)]">
+                {d.image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    alt={d.title_snapshot ?? "Custom design"}
+                    className="w-full h-full object-cover"
+                    src={d.image_url}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-[10px] text-[color:var(--muted)] p-2 text-center">
+                    Render unavailable
+                  </div>
+                )}
+                <div className="absolute top-1 left-1 px-1.5 py-0 rounded text-[8.5px] tracking-[0.06em] uppercase bg-black/55 text-white">
+                  AI render
                 </div>
-              )}
+              </div>
+              {d.reference_image_url ? (
+                <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-md overflow-hidden bg-[color:var(--ivory)] border border-[color:var(--line)]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    alt="Customer style reference"
+                    className="w-full h-full object-cover"
+                    src={d.reference_image_url}
+                  />
+                  <div className="absolute top-1 left-1 px-1.5 py-0 rounded text-[8.5px] tracking-[0.06em] uppercase bg-black/55 text-white">
+                    Reference
+                  </div>
+                </div>
+              ) : null}
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-display text-base leading-tight">

@@ -325,6 +325,10 @@ export const api = {
       fit_note?: string;
       age_confirmed: boolean;
       anonymous_session_id?: string;
+      // Optional style reference image — Pinterest screenshot, photo
+      // of a similar piece, sketch. Passed to Gemini as a second
+      // image and surfaced on the admin tailor brief.
+      style_reference?: File;
     },
   ) => {
     const body = new FormData();
@@ -337,6 +341,13 @@ export const api = {
     if (fields.fit_note) body.set("fit_note", fields.fit_note);
     if (fields.anonymous_session_id) {
       body.set("anonymous_session_id", fields.anonymous_session_id);
+    }
+    if (fields.style_reference) {
+      body.set(
+        "style_reference",
+        fields.style_reference,
+        fields.style_reference.name,
+      );
     }
     return apiUpload<DesignSessionCreateResponse>(
       "/api/v1/design-sessions",

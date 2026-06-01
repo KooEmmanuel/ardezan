@@ -102,6 +102,11 @@ class DesignService:
         customer_id: str | None,
         anonymous_session_id: str | None,
         age_confirmed: bool,
+        # Optional style reference (Pinterest screenshot, photo of a
+        # similar piece, etc.). When present we store it, pass it to the
+        # designer, and surface it on the admin tailor brief.
+        reference_bytes: bytes | None = None,
+        reference_content_type: str | None = None,
     ) -> DesignSessionCreateResponse:
         # 1. Age gate — same as try-on.
         if not customer_id and not age_confirmed:
@@ -195,6 +200,77 @@ class DesignService:
 
         design_session_id = _design_session_id()
 
+        # 6b. Optional style reference image. We do NOT run it through the
+        # safety pipeline (it's a curated reference, not a photo of a
+        # person), but we cap the size at 8 MB to avoid abuse and we
+        # do trust ``Content-Type`` from the multipart upload.
+        reference_media_id: str | None = None
+        if reference_bytes and reference_content_type:
+            if len(reference_bytes) > 8 * 1024 * 1024:
+                raise ApiError(
+                    ErrorCode.VALIDATION_ERROR,
+                    "Style reference is too large (8 MB max).",
+                    http_status=400,
+                )
+            reference_media_id = _media_id()
+            ref_ext = _guess_extension(reference_content_type)
+            ref_key_prefix = (
+                "design/references/registered"
+                if customer_id
+                else "design/references/anonymous"
+            )
+            ref_object_key = f"{ref_key_prefix}/{reference_media_id}{ref_ext}"
+            try:
+                ref_written_key = await self.storage.put_object(
+                    ref_object_key,
+                    reference_bytes,
+                    content_type=reference_content_type,
+                    metadata={
+                        "media_asset_id": reference_media_id,
+                        "owner_type": "design_reference",
+                    },
+                )
+            except Exception as exc:  # noqa: BLE001
+                log.exception("design_me.reference_upload_failed", error=str(exc))
+                raise ApiError(
+                    ErrorCode.INTERNAL_ERROR,
+                    "Could not store the style reference.",
+                    http_status=502,
+                ) from exc
+
+            await self.db[C.media_assets].insert_one(
+                {
+                    "media_asset_id": reference_media_id,
+                    "owner_type": "design_session",
+                    "owner_id": design_session_id,
+                    "purpose": "style_reference",
+                    "storage": {
+                        "bucket": self.settings.s3_bucket,
+                        "object_key": ref_written_key,
+                        "content_type": reference_content_type,
+                        "byte_size": len(reference_bytes),
+                    },
+                    "access": {"visibility": "private", "signed_url_required": True},
+                    "retention": {
+                        "policy": (
+                            "anonymous_15_min"
+                            if not customer_id
+                            else "registered_until_deleted"
+                        ),
+                        "expires_at": expires_at if not customer_id else None,
+                        "deleted_at": None,
+                    },
+                    "provenance": {
+                        "ai_generated": False,
+                        "provider": None,
+                        "c2pa_embedded": False,
+                        "digital_source_type": None,
+                    },
+                    "created_at": now,
+                    "updated_at": now,
+                }
+            )
+
         # 7. media_assets row for the uploaded photo (retention worker eats it).
         await self.db[C.media_assets].insert_one(
             {
@@ -245,6 +321,7 @@ class DesignService:
                 "anonymous_session_id": anon_id,
                 "status": "draft",
                 "uploaded_media_asset_id": upload_media_id,
+                "reference_media_asset_id": reference_media_id,
                 "generated_media_asset_id": None,
                 "fabric_snapshot": fabric_snapshot.model_dump(),
                 "piece_type": inputs.piece_type,
@@ -270,6 +347,8 @@ class DesignService:
                 brief=inputs.brief,
                 fit_note=inputs.fit_note,
                 fabric_snapshot=fabric_snapshot.model_dump(),
+                reference_bytes=reference_bytes,
+                reference_content_type=reference_content_type,
             )
         except DesignerError as exc:
             await self.db[C.design_sessions].update_one(

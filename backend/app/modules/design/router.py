@@ -52,11 +52,28 @@ async def create_design_session(
     fit_note: Annotated[str | None, Form()] = None,
     age_confirmed: Annotated[bool, Form()] = False,
     anonymous_session_id: Annotated[str | None, Form()] = None,
+    # Optional style reference (Pinterest screenshot, photo of a similar
+    # piece, sketch). Passed as a second image to Gemini; surfaces on
+    # the admin tailor brief alongside the AI render.
+    style_reference: Annotated[
+        UploadFile | None,
+        File(description="Optional style reference image."),
+    ] = None,
 ) -> DesignSessionCreateResponse:
     if anonymous_session_id:
         await enforce_upload_fingerprint(request, anonymous_session_id)
 
     body = await photo.read()
+
+    reference_bytes: bytes | None = None
+    reference_content_type: str | None = None
+    if style_reference is not None and style_reference.filename:
+        reference_bytes = await style_reference.read()
+        if reference_bytes:
+            reference_content_type = (
+                style_reference.content_type or "application/octet-stream"
+            )
+
     inputs = DesignInputs(
         fabric_id=fabric_id,
         piece_type=piece_type,  # type: ignore[arg-type]
@@ -71,6 +88,8 @@ async def create_design_session(
         customer_id=(customer or {}).get("customer_id"),
         anonymous_session_id=anonymous_session_id,
         age_confirmed=age_confirmed,
+        reference_bytes=reference_bytes,
+        reference_content_type=reference_content_type,
     )
 
 

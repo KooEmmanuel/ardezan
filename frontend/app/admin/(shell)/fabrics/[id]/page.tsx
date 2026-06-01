@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 
 import { useToast } from "@/components/toast";
-import { adminApi, type AdminFabric } from "@/lib/admin-api";
+import { adminBrowser } from "@/lib/admin-browser";
+import type { AdminFabric } from "@/lib/admin-types";
 import { API_BASE_URL } from "@/lib/api";
 
 const PIECE_OPTIONS = [
@@ -46,7 +47,7 @@ export default function EditFabricPage({
 
   useEffect(() => {
     let cancelled = false;
-    void adminApi.getFabric(id).then((r) => {
+    void adminBrowser.getFabric(id).then((r) => {
       if (cancelled) return;
       if (r.kind !== "ok") {
         setLoadError(r.kind === "error" ? r.message : "Unauthorized");
@@ -83,7 +84,7 @@ export default function EditFabricPage({
     try {
       const cents = Math.round(parseFloat(costDollars) * 100);
       if (Number.isNaN(cents) || cents < 0) throw new Error("Invalid cost.");
-      const r = await adminApi.patchFabric(id, {
+      const r = await adminBrowser.patchFabric(id, {
         name,
         description,
         color_family: colorFamily,
@@ -135,7 +136,7 @@ export default function EditFabricPage({
 
   async function onDelete() {
     if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
-    const r = await adminApi.deleteFabric(id);
+    const r = await adminBrowser.deleteFabric(id);
     if (r.kind === "ok") {
       toast({ title: "Fabric deleted", kind: "success" });
       router.push("/admin/fabrics");

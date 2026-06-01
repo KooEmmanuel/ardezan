@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { useToast } from "@/components/toast";
-import { adminApi, type AdminCommerceConfig } from "@/lib/admin-api";
+import { adminBrowser } from "@/lib/admin-browser";
+import type { AdminCommerceConfig } from "@/lib/admin-types";
 
 const PIECE_TYPES = [
   "shirt", "blouse", "trouser", "skirt", "dress",
@@ -20,7 +21,7 @@ export default function CommerceAdminPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    void adminApi.getCommerceConfig().then((r) => {
+    void adminBrowser.getCommerceConfig().then((r) => {
       if (r.kind === "ok") setCfg(r.data);
       else if (r.kind === "error") setError(r.message);
     });
@@ -32,7 +33,7 @@ export default function CommerceAdminPage() {
   async function onSave() {
     if (!cfg) return;
     setSaving(true);
-    const r = await adminApi.patchCommerceConfig({
+    const r = await adminBrowser.patchCommerceConfig({
       yardage_by_piece: cfg.yardage_by_piece,
       base_tailoring_by_piece: cfg.base_tailoring_by_piece,
       complexity_multiplier: cfg.complexity_multiplier,

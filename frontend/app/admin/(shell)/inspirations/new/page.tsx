@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { useToast } from "@/components/toast";
-import { adminApi, type AdminFabric } from "@/lib/admin-api";
+import { adminBrowser } from "@/lib/admin-browser";
+import type { AdminFabric } from "@/lib/admin-types";
 import { API_BASE_URL } from "@/lib/api";
 
 const PIECE_OPTIONS = [
@@ -37,7 +38,7 @@ export default function NewInspirationPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void adminApi.listFabrics().then((r) => {
+    void adminBrowser.listFabrics().then((r) => {
       if (r.kind === "ok") setFabrics(r.data.items);
     });
   }, []);

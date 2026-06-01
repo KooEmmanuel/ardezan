@@ -5,6 +5,13 @@ import "server-only";
 
 import { cookies } from "next/headers";
 
+import type {
+  AdminCommerceConfig,
+  AdminFabric,
+  AdminFabricUpdate,
+  AdminInspiration,
+  AdminInspirationUpdate,
+} from "@/lib/admin-types";
 import type { OrderPublic } from "@/lib/types";
 
 // Admin pages are SSR-only (this whole module is ``import "server-only"``),
@@ -402,74 +409,16 @@ export type AdminOrderTryOnResponse = {
   looks: AdminOrderTryOnLook[];
 };
 
-export type AdminCommerceConfig = {
-  yardage_by_piece: Record<string, number>;
-  base_tailoring_by_piece: Record<string, number>;
-  complexity_multiplier: Record<string, number>;
-  shipping: {
-    standard_cents: number;
-    express_cents: number;
-    international_cents: number;
-  };
-};
-
-export type AdminInspiration = {
-  inspiration_id: string;
-  fabric_id: string;
-  piece_type: string;
-  complexity: "simple" | "standard" | "intricate";
-  title: string;
-  tagline: string;
-  brief: string;
-  fit_note: string | null;
-  image_url: string | null;
-  gradient: string | null;
-  active: boolean;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-};
-
-export type AdminInspirationUpdate = {
-  fabric_id?: string;
-  piece_type?: string;
-  complexity?: "simple" | "standard" | "intricate";
-  title?: string;
-  tagline?: string;
-  brief?: string;
-  fit_note?: string | null;
-  gradient?: string | null;
-  active?: boolean;
-  sort_order?: number;
-};
-
-export type AdminFabric = {
-  fabric_id: string;
-  name: string;
-  description: string;
-  color_family: string;
-  cost_per_yard_amount: number;
-  currency: string;
-  suitable_for: string[];
-  swatch: { gradient: string | null; image_url: string | null };
-  weight: "light" | "medium" | "heavy";
-  finish: string | null;
-  active: boolean;
-  created_at: string;
-  updated_at: string;
-};
-
-export type AdminFabricUpdate = {
-  name?: string;
-  description?: string;
-  color_family?: string;
-  cost_per_yard_amount?: number;
-  suitable_for?: string[];
-  weight?: "light" | "medium" | "heavy";
-  finish?: string | null;
-  gradient?: string | null;
-  active?: boolean;
-};
+// Admin DTOs are shared with the client bundle, so they live in a
+// neutral file (no ``server-only`` directive). Re-export here so
+// existing server-side callers keep their imports working.
+export type {
+  AdminCommerceConfig,
+  AdminFabric,
+  AdminFabricUpdate,
+  AdminInspiration,
+  AdminInspirationUpdate,
+} from "@/lib/admin-types";
 
 export type AdminAISettings = {
   kill_switch_enabled: boolean;

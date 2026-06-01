@@ -5,11 +5,8 @@ import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 
 import { useToast } from "@/components/toast";
-import {
-  adminApi,
-  type AdminFabric,
-  type AdminInspiration,
-} from "@/lib/admin-api";
+import { adminBrowser } from "@/lib/admin-browser";
+import type { AdminFabric, AdminInspiration } from "@/lib/admin-types";
 import { API_BASE_URL } from "@/lib/api";
 
 const PIECE_OPTIONS = [
@@ -51,7 +48,7 @@ export default function EditInspirationPage({
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([adminApi.getInspiration(id), adminApi.listFabrics()]).then(
+    Promise.all([adminBrowser.getInspiration(id), adminBrowser.listFabrics()]).then(
       ([insR, fabR]) => {
         if (cancelled) return;
         if (insR.kind !== "ok") {
@@ -83,7 +80,7 @@ export default function EditInspirationPage({
     setSaving(true);
     setError(null);
     try {
-      const r = await adminApi.patchInspiration(id, {
+      const r = await adminBrowser.patchInspiration(id, {
         fabric_id: fabricId,
         piece_type: pieceType,
         complexity,
@@ -136,7 +133,7 @@ export default function EditInspirationPage({
 
   async function onDelete() {
     if (!window.confirm(`Delete "${title}"? This cannot be undone.`)) return;
-    const r = await adminApi.deleteInspiration(id);
+    const r = await adminBrowser.deleteInspiration(id);
     if (r.kind === "ok") {
       toast({ title: "Inspiration deleted", kind: "success" });
       router.push("/admin/inspirations");

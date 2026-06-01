@@ -56,9 +56,25 @@ def _session_id() -> str:
 
 
 # ── Tax + shipping (Phase 1 placeholders — OD-009 will replace these) ──
-def calculate_shipping(method: ShippingMethod) -> int:
-    """Flat-rate shipping. Real carrier-rate lookup is OD-004."""
-    return 1800 if method == "express" else 800
+def calculate_shipping(
+    method: ShippingMethod,
+    country: str = "US",
+    rates: dict[str, int] | None = None,
+) -> int:
+    """Flat-rate shipping with optional admin overrides.
+
+    Admin-managed values live under the ``commerce`` settings doc. The
+    checkout service calls ``get_commerce_config`` once per session
+    creation and passes ``cfg.shipping`` here. International (non-US)
+    orders use ``international_cents`` so Ghana→US dropships have a
+    sensible default ($50 DHL Express).
+    """
+    rates = rates or {}
+    if country.upper() != "US":
+        return int(rates.get("international_cents", 5_000))
+    if method == "express":
+        return int(rates.get("express_cents", 1_800))
+    return int(rates.get("standard_cents", 800))
 
 
 def calculate_tax(taxable_amount: int, country: str) -> int:
@@ -192,9 +208,15 @@ class CheckoutService:
         # Backfill SKUs for catalog lines only — custom designs don't have one.
         await self._fill_skus(snapshots)
 
-        # 4. Totals.
+        # 4. Totals. Pull admin-managed shipping rates if set.
+        from app.modules.admin.commerce_router import get_commerce_config
+        commerce_cfg = await get_commerce_config(self.db)
         subtotal = sum(s.line_total_amount for s in snapshots)
-        shipping = calculate_shipping(request.shipping_method)
+        shipping = calculate_shipping(
+            request.shipping_method,
+            country=request.shipping_address.country,
+            rates=commerce_cfg.shipping,
+        )
         tax = calculate_tax(subtotal + shipping, request.shipping_address.country)
         total = subtotal + shipping + tax
         totals = CheckoutTotals(

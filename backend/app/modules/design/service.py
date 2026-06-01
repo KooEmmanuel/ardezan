@@ -154,12 +154,18 @@ class DesignService:
             )
 
         # 5. Compute the estimate (locked into the session doc).
+        # Pull live admin-managed pricing overrides.
+        from app.modules.admin.commerce_router import get_commerce_config
+        cfg = await get_commerce_config(self.db)
         estimate = estimate_cost(
             fabric_id=inputs.fabric_id,
             cost_per_yard_amount=int(fabric["cost_per_yard_amount"]),
             currency=fabric.get("currency", "USD"),
             piece_type=inputs.piece_type,
             complexity=inputs.complexity,
+            yardage_overrides=cfg.yardage_by_piece,
+            tailoring_overrides=cfg.base_tailoring_by_piece,
+            complexity_overrides=cfg.complexity_multiplier,
         )
 
         # 6. Persist the photo.

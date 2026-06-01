@@ -117,6 +117,10 @@ async def estimate_for_fabric(
                 "suitable_for": fabric.get("suitable_for", []),
             },
         )
+    # Pull admin-managed overrides if any have been set (otherwise
+    # ``get_commerce_config`` merges over the built-in defaults).
+    from app.modules.admin.commerce_router import get_commerce_config
+    cfg = await get_commerce_config(db)
     try:
         return estimate_cost(
             fabric_id=fabric_id,
@@ -124,6 +128,9 @@ async def estimate_for_fabric(
             currency=fabric.get("currency", "USD"),
             piece_type=piece_type,  # type: ignore[arg-type]
             complexity=complexity,  # type: ignore[arg-type]
+            yardage_overrides=cfg.yardage_by_piece,
+            tailoring_overrides=cfg.base_tailoring_by_piece,
+            complexity_overrides=cfg.complexity_multiplier,
         )
     except KeyError as exc:
         raise ApiError(

@@ -103,15 +103,25 @@ def estimate_cost(
     currency: str,
     piece_type: PieceType,
     complexity: Complexity = "standard",
+    # Optional admin-managed overrides. When provided, supersede the
+    # built-in tables. Pass the entire mapping in — partial overrides
+    # are resolved in ``commerce_router.get_commerce_config`` before
+    # the value gets here.
+    yardage_overrides: dict[str, float] | None = None,
+    tailoring_overrides: dict[str, int] | None = None,
+    complexity_overrides: dict[str, float] | None = None,
 ) -> CostBreakdown:
     """Compute the estimate displayed to the customer.
 
     Raises ``KeyError`` if ``piece_type`` is unknown — the router catches
     and returns a 400.
     """
-    yardage = _YARDAGE_BY_PIECE[piece_type]
-    base_tailoring = _BASE_TAILORING_BY_PIECE[piece_type]
-    mult = _COMPLEXITY_MULTIPLIER[complexity]
+    yardage_table = yardage_overrides or _YARDAGE_BY_PIECE
+    tailoring_table = tailoring_overrides or _BASE_TAILORING_BY_PIECE
+    complexity_table = complexity_overrides or _COMPLEXITY_MULTIPLIER
+    yardage = yardage_table[piece_type]
+    base_tailoring = tailoring_table[piece_type]
+    mult = complexity_table[complexity]
 
     material = int(round(cost_per_yard_amount * yardage))
     tailoring = int(round(base_tailoring * mult))

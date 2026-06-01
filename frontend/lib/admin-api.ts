@@ -402,6 +402,17 @@ export type AdminOrderTryOnResponse = {
   looks: AdminOrderTryOnLook[];
 };
 
+export type AdminCommerceConfig = {
+  yardage_by_piece: Record<string, number>;
+  base_tailoring_by_piece: Record<string, number>;
+  complexity_multiplier: Record<string, number>;
+  shipping: {
+    standard_cents: number;
+    express_cents: number;
+    international_cents: number;
+  };
+};
+
 export type AdminInspiration = {
   inspiration_id: string;
   fabric_id: string;
@@ -682,6 +693,16 @@ export const adminApi = {
     }>(
       `/api/v1/admin/orders/${encodeURIComponent(id)}/custom-designs`,
     ),
+
+  // ── Commerce (pricing + shipping) ──────────────────────────
+  getCommerceConfig: () =>
+    fetchAdmin<AdminCommerceConfig>("/api/v1/admin/commerce"),
+
+  patchCommerceConfig: (body: Partial<AdminCommerceConfig>) =>
+    fetchAdmin<AdminCommerceConfig>("/api/v1/admin/commerce", {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
 
   // ── Inspirations ───────────────────────────────────────────
   listInspirations: () =>

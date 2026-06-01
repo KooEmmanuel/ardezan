@@ -111,6 +111,7 @@ const SECTIONS: Section[] = [
   {
     label: "System",
     items: [
+      { href: "/admin/commerce", label: "Pricing & shipping", icon: Icon.audit, match: "prefix" },
       { href: "/admin/audit", label: "Audit log", icon: Icon.audit, match: "prefix" },
     ],
   },

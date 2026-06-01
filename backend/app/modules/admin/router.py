@@ -21,6 +21,7 @@ from app.modules.admin.audit_logs_router import router as audit_logs_router
 from app.modules.admin.customers_router import router as customers_router
 from app.modules.admin.dashboard_router import router as dashboard_router
 from app.modules.admin.deps import ADMIN_COOKIE_NAME, AdminDep
+from app.modules.admin.commerce_router import router as commerce_router
 from app.modules.admin.fabrics_router import router as fabrics_router
 from app.modules.admin.inspirations_router import router as inspirations_router
 from app.modules.admin.orders_router import router as orders_router
@@ -47,6 +48,7 @@ router.include_router(dashboard_router)
 router.include_router(customers_router)
 router.include_router(fabrics_router)
 router.include_router(inspirations_router)
+router.include_router(commerce_router)
 
 
 def get_service(db: DbDep) -> AdminService:

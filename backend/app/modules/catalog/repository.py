@@ -184,7 +184,14 @@ class CatalogRepository:
         items = [
             _to_list_item(
                 d,
-                primary_image_url=signed.get(d.get("primary_media_asset_id") or ""),
+                # ``static_image_url`` lets a seeder publish a product whose
+                # primary image is served from ``frontend/public/`` instead
+                # of B2/local storage. Falls back to the standard
+                # ``primary_media_asset_id`` → signed-URL pipeline.
+                primary_image_url=(
+                    d.get("static_image_url")
+                    or signed.get(d.get("primary_media_asset_id") or "")
+                ),
             )
             for d in docs
         ]
@@ -217,7 +224,7 @@ class CatalogRepository:
                 {"$text": {"$search": query}, **_published_filter()},
                 projection={"score": {"$meta": "textScore"}, **{k: 1 for k in (
                     "product_id", "slug", "title", "category", "pricing",
-                    "primary_media_asset_id", "ai",
+                    "primary_media_asset_id", "static_image_url", "ai",
                 )}},
             )
             .sort([("score", {"$meta": "textScore"})])
@@ -230,7 +237,10 @@ class CatalogRepository:
         return [
             _to_list_item(
                 d,
-                primary_image_url=signed.get(d.get("primary_media_asset_id") or ""),
+                primary_image_url=(
+                    d.get("static_image_url")
+                    or signed.get(d.get("primary_media_asset_id") or "")
+                ),
             )
             for d in docs
         ]

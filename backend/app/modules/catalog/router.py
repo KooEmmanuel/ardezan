@@ -100,6 +100,14 @@ async def get_product(slug: str, repo: RepoDep) -> ProductDetail:
     primary_id = doc.get("primary_media_asset_id")
     all_ids = list(dict.fromkeys([*media_ids, primary_id])) if primary_id else list(media_ids)
     signed = await repo.signed_urls_for(all_ids)
+    # ``static_image_url`` / ``static_media_urls`` let a seeder publish a
+    # product whose images live in ``frontend/public/`` (CDN-served by
+    # Vercel, no B2 egress cap). Fall back to B2-signed URLs for any
+    # product that uses the media-asset pipeline.
+    static_primary = doc.get("static_image_url")
+    static_media = doc.get("static_media_urls", []) or []
+    media_urls = list(static_media) or [signed[mid] for mid in media_ids if mid in signed]
+    primary_image_url = static_primary or (signed.get(primary_id) if primary_id else None)
     return ProductDetail(
         product_id=doc["product_id"],
         slug=doc["slug"],
@@ -111,8 +119,8 @@ async def get_product(slug: str, repo: RepoDep) -> ProductDetail:
         pricing=doc["pricing"],
         media_asset_ids=media_ids,
         primary_media_asset_id=primary_id,
-        media_urls=[signed[mid] for mid in media_ids if mid in signed],
-        primary_image_url=signed.get(primary_id) if primary_id else None,
+        media_urls=media_urls,
+        primary_image_url=primary_image_url,
         ai_friendly_media_asset_ids=doc.get("ai_friendly_media_asset_ids", []),
         product_details=doc.get("product_details", {}) or {},
         variants=variants,

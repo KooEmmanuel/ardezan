@@ -121,12 +121,13 @@ export default async function CatalogPage({
         <CategoryChip active={!activeCat} href="/catalog">
           All
         </CategoryChip>
-        <CategoryChip
+        {/* Women — hidden until the catalog has womenswear. Restore by uncommenting. */}
+        {/* <CategoryChip
           active={isActiveCat(activeCat, "women")}
           href="/catalog?cat=women"
         >
           Women
-        </CategoryChip>
+        </CategoryChip> */}
         <CategoryChip
           active={isActiveCat(activeCat, "men")}
           href="/catalog?cat=men"

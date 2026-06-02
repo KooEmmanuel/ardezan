@@ -12,6 +12,7 @@ export type SiteMediaSlot =
   | "hero_mobile"
   | "category_women"
   | "category_men"
+  | "category_bespoke"
   | "category_new"
   | "category_accessories"
   | "editorial_no_01";

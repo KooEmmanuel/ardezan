@@ -86,7 +86,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </Link>
 
             <nav className="hidden md:flex items-center gap-5 ml-6 text-sm" aria-label="Primary">
-              <Link className="nav-link" href="/catalog?cat=women">Women</Link>
+              {/* Women — restore once the catalog covers womenswear. */}
+              {/* <Link className="nav-link" href="/catalog?cat=women">Women</Link> */}
               <Link className="nav-link" href="/catalog?cat=men">Men</Link>
               <Link className="nav-link" href="/catalog?cat=bespoke">Bespoke</Link>
               <Link className="nav-link" href="/try-on/design">Design Me</Link>

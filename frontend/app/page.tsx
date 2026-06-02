@@ -35,16 +35,19 @@ const STATIC_FALLBACK: Record<SiteMediaSlot, string> = {
   hero_mobile:          "/site/hero_mobile.png",
   category_women:       "/site/category_women.png",
   category_men:         "/site/category_men.png",
+  category_bespoke:     "/site/category_bespoke.png",
   category_new:         "/site/category_new.png",
   category_accessories: "/site/category_accessories.png",
   editorial_no_01:      "/site/editorial_no_01.png",
 };
 
 const CATEGORY_TILES: { label: string; href: string; slot: SiteMediaSlot }[] = [
-  { label: "Women",       href: "/catalog?cat=women",       slot: "category_women" },
+  // Women + Accessories hidden until the catalog covers those.
+  // { label: "Women",       href: "/catalog?cat=women",       slot: "category_women" },
   { label: "Men",         href: "/catalog?cat=men",         slot: "category_men" },
+  { label: "Bespoke",     href: "/catalog?cat=bespoke",     slot: "category_bespoke" },
   { label: "New",         href: "/catalog?cat=new",         slot: "category_new" },
-  { label: "Accessories", href: "/catalog?cat=accessories", slot: "category_accessories" },
+  // { label: "Accessories", href: "/catalog?cat=accessories", slot: "category_accessories" },
 ];
 
 export default async function HomePage() {
@@ -88,7 +91,7 @@ export default async function HomePage() {
             See all →
           </Link>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {CATEGORY_TILES.map((tile) => (
             <Link
               className="card-solid overflow-hidden product-card"

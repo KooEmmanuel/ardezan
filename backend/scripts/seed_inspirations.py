@@ -1,13 +1,14 @@
-"""Seed the design_inspirations collection from the original curated set.
+"""Seed the design_inspirations collection from the curated brand set.
 
-The 9 existing inspirations were hardcoded in the frontend; their hero
-images already live at ``frontend/public/bespoke/<id>.png`` (CDN-served).
-This script writes them to Mongo with ``static_image_path`` pointing at
-those bundled assets so the admin can edit / replace / hide them
-without a code push, but the live site still serves the pre-rendered
-photos out of the box.
+The Bespoke showcase mirrors what Ardezan actually sells — African
+menswear: hand-woven Kente, Ankara wax-print, agbadas, kaftans,
+dashikis, two-piece sets. Each inspiration deep-links into Design Me
+with the form pre-filled, so they're starting points the customer
+can customize.
 
 Idempotent: skips entries already in the collection unless ``--force``.
+``DEPRECATED_IDS`` are always removed (covers the original womenswear
+and generic-Western seed that we no longer carry).
 
 Run::
 
@@ -28,91 +29,20 @@ from app.config import get_settings
 from app.db import C
 
 
+# Old seed entries that don't match the current catalog — pruned on
+# every run so the showcase stays aligned with what we sell.
+DEPRECATED_IDS: list[str] = [
+    "ins_poplin_dress",     # womenswear
+    "ins_kente_dress",      # womenswear
+    "ins_ankara_wrap",      # womenswear
+    "ins_wool_blazer",      # generic Western menswear, not in catalog
+    "ins_khaki_trouser",    # generic Western menswear, not in catalog
+    "ins_denim_overshirt",  # generic Western menswear, not in catalog
+    "ins_cashmere_coat",    # generic Western menswear, not in catalog
+]
+
+
 SEED: list[dict[str, Any]] = [
-    {
-        "inspiration_id": "ins_linen_shirt",
-        "fabric_id": "fab_italian_linen",
-        "piece_type": "shirt",
-        "complexity": "standard",
-        "title": "Camp-collar linen shirt",
-        "tagline": "Open-collar shirt in lightweight Italian linen.",
-        "brief": (
-            "Camp-collar shirt, short sleeves, single chest pocket, "
-            "mother-of-pearl buttons. Boxy through the body."
-        ),
-        "fit_note": "Relaxed, falls just past the hip.",
-        "sort_order": 10,
-    },
-    {
-        "inspiration_id": "ins_wool_blazer",
-        "fabric_id": "fab_wool_flannel",
-        "piece_type": "blazer",
-        "complexity": "intricate",
-        "title": "Unstructured wool blazer",
-        "tagline": "Single-breasted blazer in soft English wool flannel.",
-        "brief": (
-            "Single-breasted, notched lapels, two-button closure, "
-            "soft shoulder, side vents, working cuffs."
-        ),
-        "fit_note": "Tailored at the waist, slight taper.",
-        "sort_order": 20,
-    },
-    {
-        "inspiration_id": "ins_khaki_trouser",
-        "fabric_id": "fab_khaki_twill",
-        "piece_type": "trouser",
-        "complexity": "standard",
-        "title": "Pleated khaki trouser",
-        "tagline": "Pleated trouser cut from structured cotton twill.",
-        "brief": (
-            "Double-pleated trouser, mid-rise, side adjusters, slight "
-            "taper, finished with a 1.5-inch turn-up."
-        ),
-        "fit_note": "Drapes cleanly without breaking on the shoe.",
-        "sort_order": 30,
-    },
-    {
-        "inspiration_id": "ins_poplin_dress",
-        "fabric_id": "fab_cotton_poplin",
-        "piece_type": "dress",
-        "complexity": "standard",
-        "title": "Cotton poplin shirt-dress",
-        "tagline": "Button-through shirt-dress in crisp cotton poplin.",
-        "brief": (
-            "Collared shirt-dress, fitted waist with a thin self-belt, "
-            "knee-length, button-through front."
-        ),
-        "fit_note": "Defined at the waist, A-line through the skirt.",
-        "sort_order": 40,
-    },
-    {
-        "inspiration_id": "ins_denim_overshirt",
-        "fabric_id": "fab_japanese_denim",
-        "piece_type": "overshirt",
-        "complexity": "standard",
-        "title": "Japanese denim overshirt",
-        "tagline": "Western-yoke overshirt in selvedge Japanese denim.",
-        "brief": (
-            "Western-yoke overshirt, two chest pockets with flaps, "
-            "point collar, pearl-snap closure."
-        ),
-        "fit_note": "Roomy through the body, fits over a sweater.",
-        "sort_order": 50,
-    },
-    {
-        "inspiration_id": "ins_cashmere_coat",
-        "fabric_id": "fab_cashmere",
-        "piece_type": "coat",
-        "complexity": "intricate",
-        "title": "Cashmere overcoat",
-        "tagline": "Double-breasted overcoat in Italian cashmere.",
-        "brief": (
-            "Double-breasted overcoat, peak lapels, six-button closure, "
-            "full lining, two flap pockets, back vent."
-        ),
-        "fit_note": "Falls to mid-thigh, structured shoulders.",
-        "sort_order": 60,
-    },
     {
         "inspiration_id": "ins_kente_blazer",
         "fabric_id": "fab_kente",
@@ -126,39 +56,118 @@ SEED: list[dict[str, Any]] = [
             "counterpoint to the woven body, double back vent."
         ),
         "fit_note": "Tailored at the waist, full canvas, padded shoulder.",
+        "sort_order": 10,
+    },
+    {
+        "inspiration_id": "ins_kente_two_piece",
+        "fabric_id": "fab_kente",
+        "piece_type": "caftan",
+        "complexity": "intricate",
+        "title": "Kente two-piece set",
+        "tagline": "Short-sleeve tunic and matching trousers in Kente strip-cloth.",
+        "brief": (
+            "Two-piece set: short-sleeve mandarin-collar tunic that "
+            "falls just past the hip + matching tapered straight-leg "
+            "trousers. Both pieces cut from the same Kente weave for a "
+            "fully coordinated ceremonial look."
+        ),
+        "fit_note": "Tunic clean through the shoulders, trousers break softly on the shoe.",
+        "sort_order": 20,
+    },
+    {
+        "inspiration_id": "ins_natural_agbada",
+        "fabric_id": "fab_italian_linen",
+        "piece_type": "agbada",
+        "complexity": "intricate",
+        "title": "Natural linen agbada",
+        "tagline": "Three-piece agbada ensemble in warm sand Italian linen.",
+        "brief": (
+            "Full three-piece agbada: wide-sleeve flowing outer robe "
+            "with subtle tone-on-tone embroidery at the neckline, "
+            "matching long-sleeve dansiki tunic underneath, and "
+            "tapered sokoto trousers. All three pieces in the same "
+            "warm sand-toned linen."
+        ),
+        "fit_note": "Generous through the body of the outer robe, structured at the shoulders.",
+        "sort_order": 30,
+    },
+    {
+        "inspiration_id": "ins_white_kaftan",
+        "fabric_id": "fab_cotton_poplin",
+        "piece_type": "caftan",
+        "complexity": "standard",
+        "title": "Crisp white cotton kaftan",
+        "tagline": "Long-sleeve kaftan in fine cotton poplin with tone-on-tone embroidery.",
+        "brief": (
+            "Long-sleeve kaftan that falls to mid-thigh, mandarin "
+            "collar, tone-on-tone white embroidery running down the "
+            "centre placket, side slits at the hem. Cut from crisp "
+            "lightweight cotton poplin."
+        ),
+        "fit_note": "Skims the body — relaxed but not boxy.",
+        "sort_order": 40,
+    },
+    {
+        "inspiration_id": "ins_ankara_two_piece",
+        "fabric_id": "fab_ankara",
+        "piece_type": "caftan",
+        "complexity": "standard",
+        "title": "Ankara two-piece set",
+        "tagline": "Wax-print short-sleeve tunic and matching trousers.",
+        "brief": (
+            "Two-piece set in vibrant Ankara wax-print cotton: "
+            "short-sleeve mandarin-collar tunic + matching tapered "
+            "trousers. Both pieces cut from the same wax-print run so "
+            "the motifs line up across the set."
+        ),
+        "fit_note": "Tunic falls just past the hip, trousers slim through the leg.",
+        "sort_order": 50,
+    },
+    {
+        "inspiration_id": "ins_ankara_bomber",
+        "fabric_id": "fab_ankara",
+        "piece_type": "jacket",
+        "complexity": "intricate",
+        "title": "Ankara wax-print bomber",
+        "tagline": "Cropped bomber jacket in vivid Ankara wax-print cotton.",
+        "brief": (
+            "Cropped bomber jacket: ribbed crew collar, ribbed cuffs "
+            "and hem, full two-way zip front, two slash pockets at "
+            "the waist. Body cut from vibrant Ankara wax-print "
+            "cotton; cuffs, collar, and hem in a matte black knit rib."
+        ),
+        "fit_note": "Sits at the natural waist, clean through the shoulders.",
+        "sort_order": 60,
+    },
+    {
+        "inspiration_id": "ins_ankara_dashiki",
+        "fabric_id": "fab_ankara",
+        "piece_type": "dashiki",
+        "complexity": "standard",
+        "title": "Classic Ankara dashiki",
+        "tagline": "Pullover dashiki shirt in Ankara wax-print cotton.",
+        "brief": (
+            "Pullover dashiki shirt: V-neckline with embroidered "
+            "ornamental yoke, short sleeves, square hem with side "
+            "slits, falls just past the hip. Cut from vibrant Ankara "
+            "wax-print cotton."
+        ),
+        "fit_note": "Relaxed through the body — meant to be worn loose.",
         "sort_order": 70,
     },
     {
-        "inspiration_id": "ins_kente_dress",
-        "fabric_id": "fab_kente",
-        "piece_type": "dress",
-        "complexity": "intricate",
-        "title": "Kente column dress",
-        "tagline": "Floor-length Kente dress with a strapless bodice.",
-        "brief": (
-            "Floor-length column dress, strapless sweetheart bodice, "
-            "fitted through the waist and hips, side slit to mid-thigh, "
-            "fully lined."
-        ),
-        "fit_note": (
-            "Hugs the silhouette through bodice and hip, falls clean "
-            "to the floor."
-        ),
-        "sort_order": 80,
-    },
-    {
-        "inspiration_id": "ins_ankara_wrap",
-        "fabric_id": "fab_ankara",
-        "piece_type": "dress",
+        "inspiration_id": "ins_linen_shirt",
+        "fabric_id": "fab_italian_linen",
+        "piece_type": "shirt",
         "complexity": "standard",
-        "title": "Ankara wrap dress",
-        "tagline": "Knee-length wrap dress in Ankara wax print.",
+        "title": "Camp-collar linen shirt",
+        "tagline": "Open-collar shirt in lightweight Italian linen.",
         "brief": (
-            "Knee-length wrap dress, deep V neckline, three-quarter "
-            "sleeves, self-tie at the waist, A-line skirt."
+            "Camp-collar shirt, short sleeves, single chest pocket, "
+            "mother-of-pearl buttons. Boxy through the body."
         ),
-        "fit_note": "Fitted through the bodice, gentle flare from the waist.",
-        "sort_order": 90,
+        "fit_note": "Relaxed, falls just past the hip.",
+        "sort_order": 80,
     },
 ]
 
@@ -171,6 +180,16 @@ async def main(force: bool) -> int:
 
     await coll.create_index("inspiration_id", unique=True)
     await coll.create_index([("sort_order", 1), ("title", 1)])
+
+    # Prune deprecated entries first — runs every time, idempotent.
+    if DEPRECATED_IDS:
+        deletion = await coll.delete_many(
+            {"inspiration_id": {"$in": DEPRECATED_IDS}}
+        )
+        if deletion.deleted_count:
+            print(f"  pruned     {deletion.deleted_count} deprecated inspirations")
+            for dep in DEPRECATED_IDS:
+                print(f"     - {dep}")
 
     now = datetime.now(UTC)
     inserted = updated = skipped = 0

@@ -7,13 +7,17 @@ sell the idea. This script generates one image per inspiration entry
 ``frontend/public/bespoke/<id>.png`` so the frontend can serve them as
 static assets.
 
+The lineup is kept in sync with ``seed_inspirations.py``. Both files
+need to change together — the script will warn if it finds bespoke PNGs
+on disk whose IDs aren't in the SHOWCASES list (so you can prune them).
+
 Re-runs are idempotent: existing files are skipped unless ``--force``.
 
 Run::
 
     .venv/bin/python -m scripts.render_design_showcases          # generate missing
     .venv/bin/python -m scripts.render_design_showcases --force  # regenerate all
-    .venv/bin/python -m scripts.render_design_showcases --only ins_cashmere_coat
+    .venv/bin/python -m scripts.render_design_showcases --only ins_kente_blazer
 """
 from __future__ import annotations
 
@@ -32,68 +36,10 @@ from app.modules.try_on.gemini_client import get_gemini_client
 log = get_logger(__name__)
 
 
-# Mirror of the curated inspiration list on the frontend
-# (``lib/design-inspirations.ts``). Kept in sync by hand — these are
-# both small, stable lists, and a dedicated script run is cheap.
+# Mirror of ``seed_inspirations.py`` SEED. Eight African-leaning
+# menswear pieces — the prompts all show a black African male model
+# so the showcase reads cohesively next to the homepage hero.
 SHOWCASES: list[dict[str, Any]] = [
-    {
-        "id": "ins_linen_shirt",
-        "title": "Camp-collar linen shirt",
-        "fabric": "Italian linen — warm sand and stone tones, lightweight, soft drape, matte surface",
-        "piece_brief": (
-            "Camp-collar shirt with short sleeves, single chest pocket, "
-            "mother-of-pearl buttons, boxy through the body."
-        ),
-    },
-    {
-        "id": "ins_wool_blazer",
-        "title": "Unstructured wool blazer",
-        "fabric": "English wool flannel — cool grey and slate tones, medium-heavy weight, brushed surface",
-        "piece_brief": (
-            "Single-breasted blazer with notched lapels, two-button closure, "
-            "soft shoulder, side vents, working cuffs."
-        ),
-    },
-    {
-        "id": "ins_khaki_trouser",
-        "title": "Pleated khaki trouser",
-        "fabric": "Cotton twill — warm khaki tones, medium weight, structured surface",
-        "piece_brief": (
-            "Double-pleated trouser, mid-rise, side adjusters, slight taper, "
-            "finished with a 1.5-inch turn-up at the hem."
-        ),
-    },
-    {
-        "id": "ins_poplin_dress",
-        "title": "Cotton poplin shirt-dress",
-        "fabric": "Cotton poplin — cool white tones, light weight, matte surface, crisp drape",
-        "piece_brief": (
-            "Collared shirt-dress with a fitted waist, thin self-belt, "
-            "knee-length, button-through front."
-        ),
-    },
-    {
-        "id": "ins_denim_overshirt",
-        "title": "Japanese denim overshirt",
-        "fabric": "Selvedge Japanese denim — deep indigo, medium weight, structured surface",
-        "piece_brief": (
-            "Western-yoke overshirt with two chest pockets with flaps, "
-            "point collar, pearl-snap closure, roomy through the body."
-        ),
-    },
-    {
-        "id": "ins_cashmere_coat",
-        "title": "Cashmere overcoat",
-        "fabric": "Italian cashmere — deep chocolate brown, medium weight, lustrous surface",
-        "piece_brief": (
-            "Double-breasted overcoat with peak lapels, six-button closure, "
-            "two flap pockets, back vent, mid-thigh length, structured shoulders."
-        ),
-    },
-    # ── Kente + Ankara — brand-anchoring pieces. The fabric blurb
-    # is long on purpose; Gemini needs an explicit visual reference
-    # to render real Kente / wax-print patterns instead of a vague
-    # "African pattern."
     {
         "id": "ins_kente_blazer",
         "title": "Hand-woven Kente blazer",
@@ -112,58 +58,128 @@ SHOWCASES: list[dict[str, Any]] = [
         ),
     },
     {
-        "id": "ins_kente_dress",
-        "title": "Kente column dress",
+        "id": "ins_kente_two_piece",
+        "title": "Kente two-piece set",
         "fabric": (
-            "Traditional hand-woven Ghanaian Kente strip-cloth — bold "
-            "geometric blocks of saffron yellow, vermillion red, emerald "
-            "green, and deep indigo/black, arranged in horizontal bands."
+            "Traditional hand-woven Ghanaian Kente strip-cloth in the Bonwire "
+            "weaving style — bold horizontal bands of saffron yellow, vermillion "
+            "red, emerald green, and deep indigo/black. Medium weight cotton-rayon."
         ),
         "piece_brief": (
-            "Floor-length column dress with a strapless sweetheart bodice, "
-            "fitted through the waist and hips, a single side slit rising to "
-            "mid-thigh. Fully lined. The Kente strips run horizontally across "
-            "the body."
+            "Coordinated two-piece set: short-sleeve mandarin-collar tunic top "
+            "that falls just past the hip + matching tapered straight-leg "
+            "trousers. Both pieces cut from the same Kente weave so the bands "
+            "run continuously from tunic to trouser."
         ),
     },
     {
-        "id": "ins_ankara_wrap",
-        "title": "Ankara wrap dress",
+        "id": "ins_natural_agbada",
+        "title": "Natural linen agbada",
         "fabric": (
-            "West African Ankara wax-print cotton — a vibrant high-contrast "
-            "tribal pattern of stylised florals and geometric motifs in "
-            "saturated cream, amber, vermillion, and indigo. Crisp, light "
-            "cotton with the characteristic waxed sheen."
+            "Premium Italian linen — warm natural sand and stone tones, "
+            "medium weight, soft drape, matte surface with subtle slubbed texture."
         ),
         "piece_brief": (
-            "Knee-length wrap dress with a deep V neckline, three-quarter "
-            "sleeves, a self-tie at the waist, and an A-line skirt that "
-            "flares gently from the waist."
+            "Full three-piece agbada ensemble: wide-sleeve flowing outer robe "
+            "with subtle tone-on-tone gold thread embroidery at the neckline, "
+            "matching long-sleeve dansiki tunic underneath, and tapered "
+            "sokoto trousers. All three pieces cut from the same warm "
+            "sand-toned linen. Ceremonial menswear."
+        ),
+    },
+    {
+        "id": "ins_white_kaftan",
+        "title": "Crisp white cotton kaftan",
+        "fabric": (
+            "Fine cotton poplin — clean white, lightweight, soft matte surface, "
+            "crisp drape."
+        ),
+        "piece_brief": (
+            "Long-sleeve kaftan that falls to mid-thigh, mandarin collar, "
+            "tone-on-tone white embroidery running down the centre placket, "
+            "side slits at the hem. Cut from crisp lightweight cotton poplin."
+        ),
+    },
+    {
+        "id": "ins_ankara_two_piece",
+        "title": "Ankara two-piece set",
+        "fabric": (
+            "West African Ankara wax-print cotton — a vibrant high-contrast "
+            "pattern of stylised florals and geometric motifs in saturated "
+            "cream, amber, vermillion, and deep indigo. Crisp, light cotton "
+            "with the characteristic waxed sheen."
+        ),
+        "piece_brief": (
+            "Coordinated two-piece set: short-sleeve mandarin-collar tunic + "
+            "matching tapered trousers. Both pieces cut from the same "
+            "wax-print run so the motifs line up across the set."
+        ),
+    },
+    {
+        "id": "ins_ankara_bomber",
+        "title": "Ankara wax-print bomber",
+        "fabric": (
+            "West African Ankara wax-print cotton — a vibrant high-contrast "
+            "pattern in indigo, vermillion, and amber on a cream ground. "
+            "Crisp lightweight cotton with the characteristic waxed sheen."
+        ),
+        "piece_brief": (
+            "Cropped bomber jacket: ribbed crew collar, ribbed cuffs and hem, "
+            "full two-way zip front, two slash pockets at the waist. Body cut "
+            "from the Ankara wax-print; the collar, cuffs, and hem are in a "
+            "matte black knit rib."
+        ),
+    },
+    {
+        "id": "ins_ankara_dashiki",
+        "title": "Classic Ankara dashiki",
+        "fabric": (
+            "West African Ankara wax-print cotton — a vibrant high-contrast "
+            "pattern of stylised florals and geometric motifs in saturated "
+            "cream, amber, vermillion, and indigo. Crisp lightweight cotton."
+        ),
+        "piece_brief": (
+            "Pullover dashiki shirt: V-neckline with embroidered ornamental "
+            "yoke, short sleeves, square hem with side slits, falls just past "
+            "the hip. Cut from the vibrant Ankara wax-print cotton."
+        ),
+    },
+    {
+        "id": "ins_linen_shirt",
+        "title": "Camp-collar linen shirt",
+        "fabric": (
+            "Italian linen — warm sand and stone tones, lightweight, soft "
+            "drape, matte surface with subtle slubbed texture."
+        ),
+        "piece_brief": (
+            "Camp-collar shirt with short sleeves, single chest pocket, "
+            "mother-of-pearl buttons, boxy through the body."
         ),
     },
 ]
 
 
 def _build_prompt(entry: dict[str, Any]) -> str:
-    """Studio editorial prompt — no person, just the garment.
+    """Editorial prompt — black African male model wearing the piece.
 
-    We've found this style reliably produces a clean, magazine-feel
-    product hero that scales well into a catalog tile. We avoid asking
-    for a mannequin or a person so the model doesn't accidentally make
-    a face we then need to worry about.
+    We switched from flat-lay to on-body because the showcase reads
+    next to the homepage hero (which is on-body) and a coherent
+    visual brand requires both to match. Studio settings keep the
+    focus on the garment, not the location.
     """
     return (
-        f"Editorial flat-lay product photograph of: {entry['piece_brief']} "
+        "Editorial fashion photograph for a premium menswear magazine. "
+        f"A tall, confident, handsome young black African man modelling: "
+        f"{entry['piece_brief']} "
         f"The fabric is {entry['fabric']}. "
-        "Show the full garment, slightly arranged with natural folds "
-        "to convey the drape and weight of the fabric. "
-        "Plain neutral background (warm off-white or soft stone). "
-        "Soft, even studio lighting from above. "
-        "Photorealistic, high-end fashion-magazine quality. "
-        "Composition: 4:5 vertical, garment centred, plenty of negative space. "
-        "Show construction details — seams, lapels, collar, buttons, hems — "
-        "at a level a customer can read at a glance. "
-        "Do not render a model, person, mannequin, hanger, or hands."
+        "Clean warm-neutral studio background (warm off-white or soft stone). "
+        "Soft, even directional studio lighting from camera-left. "
+        "Full length, head to shoe, model centred, calm composed expression, "
+        "hands relaxed at the sides or loosely clasped at the waist. "
+        "Show construction details — seams, collar, buttons, embroidery, "
+        "fabric pattern — at a level the customer can read at a glance. "
+        "4:5 vertical composition. Photorealistic, magazine-quality, "
+        "premium African menswear editorial."
     )
 
 
@@ -219,6 +235,19 @@ async def main(force: bool, only: str | None) -> int:
     out_dir = here.parent / "frontend" / "public" / "bespoke"
     out_dir.mkdir(parents=True, exist_ok=True)
     print(f"Output: {out_dir}")
+
+    # Warn about orphan PNGs (files on disk for IDs no longer in
+    # SHOWCASES). The customer-facing API hides them once Mongo is
+    # cleaned up via seed_inspirations.py, but the files themselves
+    # should be deleted to avoid dead weight in the repo.
+    valid_ids = {e["id"] for e in SHOWCASES}
+    orphans = sorted(
+        p.stem for p in out_dir.glob("*.png") if p.stem not in valid_ids
+    )
+    if orphans:
+        print(f"Orphan PNGs ({len(orphans)} — delete from disk):")
+        for orphan in orphans:
+            print(f"  - {orphan}.png")
 
     targets = [e for e in SHOWCASES if not only or e["id"] == only]
     if not targets:

@@ -109,12 +109,15 @@ SLOTS: list[dict[str, Any]] = [
     {
         "name": "hero_mobile",
         "prompt": (
-            "Editorial fashion photograph for a mobile hero banner. Wide "
-            "horizontal composition (3:2 landscape). A young black African "
-            "man in a tailored deep burgundy cotton two-piece set walking "
-            "confidently across a warm cream studio backdrop, soft cinematic "
-            "side light, motion blur subtle. Premium menswear editorial, "
-            "magazine quality, photorealistic."
+            "Editorial fashion photograph for a square (1:1 aspect ratio) "
+            "mobile hero card. A young black African man modelling a "
+            "tailored deep burgundy cotton two-piece set, framed from "
+            "head to upper-thigh, centred in the frame. Calm confident "
+            "expression, hands relaxed. Clean very-light cool-grey studio "
+            "backdrop (close to #f2f2f2, neutral, no warm cast). Soft "
+            "even daylight. Square 1:1 composition, no text, no logos, "
+            "no captions, no border. Premium menswear editorial, "
+            "magazine-quality, photorealistic."
         ),
     },
     {
@@ -154,12 +157,19 @@ SLOTS: list[dict[str, Any]] = [
     {
         "name": "editorial_no_01",
         "prompt": (
-            "Editorial spread image — a black African man seated on a "
-            "minimal wooden bench against a warm cream wall, wearing a "
-            "deep burgundy cotton two-piece set. Soft window light from "
-            "the side, contemplative pose looking off to the right, hands "
-            "loosely clasped. Premium menswear magazine editorial, "
-            "magazine-quality, photorealistic. 4:5 vertical."
+            "Editorial fashion photograph (4:5 vertical) of a confident "
+            "young black African man modelling a tailored deep burgundy "
+            "cotton two-piece set — high-collar tunic + matching tapered "
+            "trousers. Modern minimal studio: completely smooth, seamless, "
+            "very light cool-grey backdrop (close to #f2f2f2 — neutral, "
+            "no warm cream cast, no shadows on the wall). Soft even "
+            "directional studio light from camera-left, gentle, no harsh "
+            "highlights. Full length, head to shoe, model centred, calm "
+            "composed expression, hands loosely clasped at the waist. "
+            "Absolutely no text, no captions, no magazine title overlays, "
+            "no logos, no border, no date stamps, no graphic elements. "
+            "Just the model and the clean studio. Premium AI-styled "
+            "menswear editorial, photorealistic, magazine-quality."
         ),
     },
 ]

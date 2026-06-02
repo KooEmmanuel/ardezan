@@ -42,7 +42,10 @@ export function HomeHero({
     <section className="ai-canvas">
       <div className="max-w-[1280px] mx-auto px-4 sm:px-5 pt-8 sm:pt-14 pb-12 sm:pb-20">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.05fr] gap-10 lg:gap-14 items-center">
-          <HeroCopyAndForm onStart={() => router.push("/try-on")} />
+          <HeroCopyAndForm
+            mobileHeroUrl={slotUrl("hero_mobile")}
+            onStart={() => router.push("/try-on")}
+          />
           <HeroCascade slotUrl={slotUrl} />
         </div>
       </div>
@@ -180,7 +183,13 @@ function HeroCascade({ slotUrl }: { slotUrl: (slot: SiteMediaSlot) => string }) 
 }
 
 // ─── Hero left: copy + upload form ───────────────────────────────
-function HeroCopyAndForm({ onStart }: { onStart: () => void }) {
+function HeroCopyAndForm({
+  mobileHeroUrl,
+  onStart,
+}: {
+  mobileHeroUrl: string;
+  onStart: () => void;
+}) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
   const [hasSaved, setHasSaved] = useState(false);
@@ -262,6 +271,29 @@ function HeroCopyAndForm({ onStart }: { onStart: () => void }) {
         Upload one full-body photo. Our stylist drapes ten looks onto your shape —
         fit, fabric, and proportion — in about fifteen seconds.
       </p>
+
+      {/* Mobile-only hero visual. The desktop HeroCascade is `hidden sm:block`,
+          so without this phones drop straight from the copy into "Shop by
+          category" — making the home feel catalog-led. This keeps the AI
+          try-on the visual default on mobile. */}
+      <div className="sm:hidden glass-strong overflow-hidden max-w-md mb-6">
+        <div className="ratio-11 relative overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            alt="An AI-generated try-on look"
+            className="absolute inset-0 w-full h-full object-cover"
+            src={mobileHeroUrl}
+          />
+          <span className="absolute top-3 left-3 pill pill-ai z-10">AI preview</span>
+        </div>
+        <div className="p-3 bg-white/85 backdrop-blur-md flex items-center justify-between">
+          <div>
+            <div className="font-display text-base leading-tight">Outdoor Linen</div>
+            <div className="text-[11px] text-[color:var(--muted)]">3-piece · size M</div>
+          </div>
+          <div className="text-sm">$327</div>
+        </div>
+      </div>
 
       <div
         className="glass p-4 sm:p-6 max-w-md"

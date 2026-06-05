@@ -67,13 +67,8 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* Hero is interactive (form + cycling cascade) → client island */}
-      <HomeHero
-        initialSiteMedia={
-          STATIC_FALLBACK as Record<SiteMediaSlot, string | null>
-        }
-        picsumFallback={STATIC_FALLBACK}
-      />
+      {/* Hero: cinematic reel as background + overlaid copy/CTA → client island */}
+      <HomeHero />
 
       {/* ─── Shop by category ─── */}
       <section className="max-w-[1280px] mx-auto px-5 pt-14 pb-6">

@@ -8,6 +8,7 @@ import { CartBadge } from "@/components/cart-badge";
 import { ChromeGate } from "@/components/chrome-gate";
 import { MobileNav } from "@/components/mobile-nav";
 import { NavViewToggle } from "@/components/nav-view-toggle";
+import { TestModeBanner } from "@/components/test-mode-banner";
 import { ToastProvider } from "@/components/toast";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 import "./globals.css";
@@ -71,6 +72,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="min-h-screen">
         <ToastProvider>
         <ChromeGate>
+        <TestModeBanner />
         <header className="border-b border-[color:var(--line)] bg-[color:var(--paper)]/85 backdrop-blur-md sticky top-0 z-40">
           <div className="max-w-[1280px] mx-auto px-4 sm:px-5 py-3 sm:py-4 flex items-center gap-2 sm:gap-4">
             <MobileNav />

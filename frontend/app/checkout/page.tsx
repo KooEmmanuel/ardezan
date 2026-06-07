@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { CheckoutPaymentForm } from "@/components/checkout-payment-form";
 import { useToast } from "@/components/toast";
+import { DEMO_CHECKOUT, DEMO_MODE } from "@/lib/demo";
 import { VerifyEmailBanner } from "@/components/verify-email-banner";
 import { api, formatMoney, isEmailNotVerified } from "@/lib/api";
 import { readCart, writeCart } from "@/lib/cart";
@@ -32,16 +33,22 @@ export default function CheckoutPage() {
   const { toast } = useToast();
   const [lines, setLines] = useState<CartLineInput[]>([]);
   const [validated, setValidated] = useState<RevalidateResponse | null>(null);
-  const [email, setEmail] = useState("");
-  const [address, setAddress] = useState<Address>({
-    name: "",
-    line1: "",
-    line2: "",
-    city: "",
-    region: "",
-    postal_code: "",
-    country: "US",
-  });
+  // In demo mode we prefill contact + shipping so a judge only has to paste
+  // the test card. Off in production (NEXT_PUBLIC_DEMO_MODE=false).
+  const [email, setEmail] = useState(DEMO_MODE ? DEMO_CHECKOUT.email : "");
+  const [address, setAddress] = useState<Address>(
+    DEMO_MODE
+      ? { ...DEMO_CHECKOUT.address }
+      : {
+          name: "",
+          line1: "",
+          line2: "",
+          city: "",
+          region: "",
+          postal_code: "",
+          country: "US",
+        },
+  );
   const [shippingMethod, setShippingMethod] = useState<"standard" | "express">("standard");
   const [session, setSession] = useState<CheckoutSessionPublic | null>(null);
   const [creating, setCreating] = useState(false);
@@ -311,6 +318,18 @@ export default function CheckoutPage() {
                 stripe={stripePromise}
               >
                 <CheckoutPaymentForm
+                  defaultBilling={{
+                    name: address.name,
+                    email,
+                    address: {
+                      line1: address.line1,
+                      line2: address.line2 || undefined,
+                      city: address.city,
+                      state: address.region || undefined,
+                      postal_code: address.postal_code,
+                      country: address.country,
+                    },
+                  }}
                   onSucceeded={() => {
                     // Only drop the lines we charged for; anything the
                     // customer held back stays in the bag for next time.

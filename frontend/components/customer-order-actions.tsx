@@ -54,14 +54,14 @@ export function CustomerOrderActions({ order }: { order: OrderPublic }) {
   async function doCancel() {
     setBusy(true);
     try {
-      const r = await fetch(
-        `${API_BASE_URL}/api/v1/orders/${encodeURIComponent(order.order_id)}/cancel`,
-        {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+      const url =
+        `${API_BASE_URL}/api/v1/orders/${encodeURIComponent(order.order_id)}/cancel` +
+        (guestToken ? `?token=${encodeURIComponent(guestToken)}` : "");
+      const r = await fetch(url, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
       if (!r.ok) {
         let msg = "Couldn't cancel.";
         try {

@@ -18,6 +18,7 @@ existing capabilities; we don't re-implement Gemini calls here.
 """
 from __future__ import annotations
 
+import contextvars
 import json
 from typing import Any
 
@@ -121,21 +122,29 @@ async def propose_outfits_tool(
         log.warning("stylist_agent.recommender_failed", error=str(exc))
         return json.dumps({"error": "Recommender failed", "outfits": []})
 
-    # Stash the (outfits, candidates) pair on a module-level register so the
-    # worker can pick them up to build cards. We keep it keyed by the
-    # invocation id (session_id) — see ``run_stylist_refine``.
+    # Stash the (outfits, candidates) pair on the *per-run* register so
+    # ``run_stylist_refine`` can pick them up to build cards. A context
+    # variable (not module state) keeps concurrent refine jobs isolated —
+    # the worker runs several jobs at once.
     outfit_dicts = [
         o.model_dump() if hasattr(o, "model_dump") else o for o in outfits
     ]
-    _LAST_PROPOSAL["outfits"] = outfit_dicts
-    _LAST_PROPOSAL["candidates"] = candidates
+    register = _proposal_register.get()
+    if register is not None:
+        register["outfits"] = outfit_dicts
+        register["candidates"] = candidates
     return json.dumps(outfit_dicts, default=str)
 
 
-# Tiny per-process register so ``run_stylist_refine`` can return both the
-# agent's structured outfits *and* the candidate list the tool worked on,
-# without polluting the LLM's tool-result payload.
-_LAST_PROPOSAL: dict[str, Any] = {"outfits": None, "candidates": None}
+# Per-run register so ``run_stylist_refine`` can return both the agent's
+# structured outfits *and* the candidate list the tool worked on, without
+# polluting the LLM's tool-result payload. ContextVar (instead of a module
+# global) so concurrent jobs can't cross-contaminate each other's plans:
+# the tool call executes inside the run's task tree and therefore sees the
+# dict its own run installed.
+_proposal_register: contextvars.ContextVar[dict[str, Any] | None] = (
+    contextvars.ContextVar("stylist_proposal_register", default=None)
+)
 
 
 # ── Agent definition ──────────────────────────────────────────────────
@@ -257,37 +266,43 @@ async def run_stylist_refine(
     tool_calls: list[dict[str, Any]] = []
     outfit_plan_raw: str | None = None
 
-    async for event in runner.run_async(
-        user_id=user_id,
-        session_id=session_id,
-        new_message=new_message,
-    ):
-        # Capture tool calls + final response text from event stream.
-        # ADK events carry function_call / function_response pairs.
-        content = getattr(event, "content", None)
-        if content and content.parts:
-            for part in content.parts:
-                if getattr(part, "function_call", None):
-                    fc = part.function_call
-                    tool_calls.append(
-                        {
-                            "name": fc.name,
-                            "args": dict(fc.args) if fc.args else {},
-                        }
-                    )
-                if getattr(part, "function_response", None):
-                    fr = part.function_response
-                    if fr.name == "propose_outfits_tool":
-                        outfit_plan_raw = (
-                            fr.response.get("result")
-                            if isinstance(fr.response, dict)
-                            else None
+    # Fresh per-run register; the propose_outfits tool writes into it.
+    proposal: dict[str, Any] = {"outfits": None, "candidates": None}
+    _register_token = _proposal_register.set(proposal)
+    try:
+        async for event in runner.run_async(
+            user_id=user_id,
+            session_id=session_id,
+            new_message=new_message,
+        ):
+            # Capture tool calls + final response text from event stream.
+            # ADK events carry function_call / function_response pairs.
+            content = getattr(event, "content", None)
+            if content and content.parts:
+                for part in content.parts:
+                    if getattr(part, "function_call", None):
+                        fc = part.function_call
+                        tool_calls.append(
+                            {
+                                "name": fc.name,
+                                "args": dict(fc.args) if fc.args else {},
+                            }
                         )
-                if (
-                    getattr(part, "text", None)
-                    and event.is_final_response()
-                ):
-                    summary_parts.append(part.text)
+                    if getattr(part, "function_response", None):
+                        fr = part.function_response
+                        if fr.name == "propose_outfits_tool":
+                            outfit_plan_raw = (
+                                fr.response.get("result")
+                                if isinstance(fr.response, dict)
+                                else None
+                            )
+                    if (
+                        getattr(part, "text", None)
+                        and event.is_final_response()
+                    ):
+                        summary_parts.append(part.text)
+    finally:
+        _proposal_register.reset(_register_token)
 
     summary = "\n".join(summary_parts).strip()
     try:
@@ -295,12 +310,10 @@ async def run_stylist_refine(
     except (ValueError, TypeError):
         outfit_plan = []
 
-    # Pull the (outfits, candidates) pair the tool stashed for us, then
-    # clear the register so the next run doesn't leak state.
-    structured_outfits = _LAST_PROPOSAL.get("outfits") or []
-    candidates_used = _LAST_PROPOSAL.get("candidates") or []
-    _LAST_PROPOSAL["outfits"] = None
-    _LAST_PROPOSAL["candidates"] = None
+    # Pull the (outfits, candidates) pair the tool stashed on this run's
+    # register.
+    structured_outfits = proposal.get("outfits") or []
+    candidates_used = proposal.get("candidates") or []
 
     log.info(
         "stylist_agent.refine_complete",

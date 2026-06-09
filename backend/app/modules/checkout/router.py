@@ -74,8 +74,16 @@ async def create_session(
 async def get_session(
     checkout_session_id: str,
     service: ServiceDep,
+    customer: OptionalCustomerDep,
+    idempotency_key: IdempotencyKey = None,
 ) -> CheckoutSessionPublic:
-    return await service.get_session(checkout_session_id)
+    """Owner-only: the signed-in customer the session belongs to, or — for
+    guest sessions — the ``Idempotency-Key`` header used to create it."""
+    return await service.get_session(
+        checkout_session_id,
+        customer_id=(customer or {}).get("customer_id"),
+        idempotency_key=idempotency_key,
+    )
 
 
 @router.post(
@@ -86,5 +94,12 @@ async def get_session(
 async def cancel_session(
     checkout_session_id: str,
     service: ServiceDep,
+    customer: OptionalCustomerDep,
+    idempotency_key: IdempotencyKey = None,
 ) -> CheckoutSessionPublic:
-    return await service.cancel_session(checkout_session_id)
+    """Owner-only — see ``get_session`` for the ownership rules."""
+    return await service.cancel_session(
+        checkout_session_id,
+        customer_id=(customer or {}).get("customer_id"),
+        idempotency_key=idempotency_key,
+    )

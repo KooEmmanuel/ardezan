@@ -117,7 +117,8 @@ class DesignService:
                 details={"hint": "Submit ``age_confirmed=true`` in the form."},
             )
 
-        # 2. AI kill switch.
+        # 2. AI kill switch + daily spend ceiling (same admin controls the
+        # try-on pipeline honours — a render here costs a Gemini image call).
         ai_settings = await self.ai_settings_repo.get_resolved()
         if ai_settings["kill_switch_enabled"]:
             raise ApiError(
@@ -126,6 +127,21 @@ class DesignService:
                 http_status=503,
                 details={"reason": "kill_switch_enabled"},
             )
+        ceiling = int(ai_settings.get("daily_spend_ceiling_amount") or 0)
+        if ceiling > 0:
+            from app.modules.admin.ai_repository import AnalyticsRepository
+
+            today_start = datetime.now(UTC).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+            today_spend = await AnalyticsRepository(self.db).ai_today_spend(today_start)
+            if today_spend >= ceiling:
+                raise ApiError(
+                    ErrorCode.AI_UNAVAILABLE,
+                    "Design Me is temporarily unavailable — please try again tomorrow.",
+                    http_status=503,
+                    details={"reason": "daily_spend_ceiling_reached"},
+                )
 
         # 3. Fabric + compatibility check.
         fabric = await self._load_fabric(inputs.fabric_id)
@@ -357,12 +373,20 @@ class DesignService:
                 reference_content_type=reference_content_type,
             )
         except DesignerError as exc:
+            # ``failure_reason`` is customer-facing (it's returned verbatim
+            # by the public session read) — keep raw exception text in the
+            # internal ``failure_detail`` field only.
+            friendly_failure = (
+                "We couldn't render your design. Try a clearer photo or "
+                "a shorter brief — your card and estimate are saved."
+            )
             await self.db[C.design_sessions].update_one(
                 {"design_session_id": design_session_id},
                 {
                     "$set": {
                         "status": "failed",
-                        "failure_reason": str(exc),
+                        "failure_reason": friendly_failure,
+                        "failure_detail": str(exc)[:500],
                         "updated_at": datetime.now(UTC),
                     },
                     "$push": {"provider_calls": exc.provider_call},
@@ -373,10 +397,7 @@ class DesignService:
                 status="failed",
                 estimate=estimate,
                 image_url=None,
-                failure_reason=(
-                    "We couldn't render your design. Try a clearer photo or "
-                    "a shorter brief — your card and estimate are saved."
-                ),
+                failure_reason=friendly_failure,
             )
 
         # 10. Persist the render + flip the session to `ready`.

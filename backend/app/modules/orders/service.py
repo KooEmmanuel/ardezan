@@ -150,6 +150,8 @@ class OrdersService:
             public = await self.create_from_checkout(
                 checkout_session_id,
                 stripe_payment_intent_id=payment_intent_id,
+                paid_amount=intent.get("amount_received") or intent.get("amount"),
+                paid_currency=intent.get("currency"),
             )
         except ApiError as exc:
             log.warning(
@@ -192,15 +194,45 @@ class OrdersService:
         return _to_public(doc, include_guest_token=False)
 
     # ── Create (called by webhook on payment_intent.succeeded) ─
+    async def _finish_fulfillment(self, checkout_session_id: str) -> None:
+        """Re-runnable tail of order fulfillment: commit inventory holds and
+        mark the checkout session paid.
+
+        Both operations are idempotent (``commit_checkout`` only converts
+        *active* holds), so this heals a previous attempt that created the
+        order but crashed before committing inventory.
+        """
+        committed = await self.inventory.commit_checkout(checkout_session_id)
+        session = await self.checkout_repo.find_by_id(checkout_session_id)
+        if session and session.get("status") != "paid":
+            await self.checkout_repo.update_status(
+                checkout_session_id, status="paid", now=_now()
+            )
+        if committed:
+            log.warning(
+                "order.fulfillment_healed",
+                checkout_session_id=checkout_session_id,
+                committed_holds=committed,
+            )
+
     async def create_from_checkout(
         self,
         checkout_session_id: str,
         *,
         stripe_payment_intent_id: str,
+        paid_amount: int | None = None,
+        paid_currency: str | None = None,
     ) -> OrderPublic:
         """Idempotent. Returns the order whether we just created it or it
-        already existed for this checkout session."""
-        # 0. Short-circuit: order already exists?
+        already existed for this checkout session.
+
+        ``paid_amount`` / ``paid_currency`` (when provided by the webhook)
+        are verified against the session totals as defence-in-depth against
+        a mispriced or tampered PaymentIntent.
+        """
+        # 0. Short-circuit: order already exists? Still re-run the
+        # fulfillment tail so a retry after a partial failure (order
+        # inserted, inventory commit crashed) converges.
         existing = await self.repo.find_by_checkout_session(checkout_session_id)
         if existing:
             log.info(
@@ -209,6 +241,7 @@ class OrdersService:
                 checkout_session_id=checkout_session_id,
                 reason="order_already_exists",
             )
+            await self._finish_fulfillment(checkout_session_id)
             return _to_public(existing, include_guest_token=False)
 
         # 1. Look up the checkout session.
@@ -218,6 +251,58 @@ class OrdersService:
                 ErrorCode.NOT_FOUND,
                 f"Checkout session not found: {checkout_session_id}",
                 http_status=404,
+            )
+
+        # 1a. Reject sessions that were already expired/cancelled — their
+        # holds are gone, so fulfilling would oversell. The payment event
+        # stays in ``failed`` state for ops to refund/resolve.
+        session_status = session.get("status")
+        if session_status in {"expired", "cancelled"}:
+            log.error(
+                "order.session_not_fulfillable",
+                checkout_session_id=checkout_session_id,
+                session_status=session_status,
+                stripe_payment_intent_id=stripe_payment_intent_id,
+            )
+            raise ApiError(
+                ErrorCode.CONFLICT,
+                f"Checkout session is '{session_status}' — payment needs manual review.",
+                http_status=409,
+                details={"checkout_session_id": checkout_session_id},
+            )
+
+        # 1b. Verify the charged amount matches what we quoted.
+        totals = session.get("totals") or {}
+        if paid_amount is not None and int(totals.get("total_amount", -1)) != int(paid_amount):
+            log.error(
+                "order.amount_mismatch",
+                checkout_session_id=checkout_session_id,
+                expected=totals.get("total_amount"),
+                paid=paid_amount,
+                stripe_payment_intent_id=stripe_payment_intent_id,
+            )
+            raise ApiError(
+                ErrorCode.CONFLICT,
+                "Paid amount does not match the checkout session total.",
+                http_status=409,
+                details={"checkout_session_id": checkout_session_id},
+            )
+        if (
+            paid_currency is not None
+            and str(totals.get("currency", "")).upper() != str(paid_currency).upper()
+        ):
+            log.error(
+                "order.currency_mismatch",
+                checkout_session_id=checkout_session_id,
+                expected=totals.get("currency"),
+                paid=paid_currency,
+                stripe_payment_intent_id=stripe_payment_intent_id,
+            )
+            raise ApiError(
+                ErrorCode.CONFLICT,
+                "Paid currency does not match the checkout session.",
+                http_status=409,
+                details={"checkout_session_id": checkout_session_id},
             )
 
         # 2. Build the order document.
@@ -384,17 +469,66 @@ class OrdersService:
             )
         return _to_public(doc, include_guest_token=False)
 
-    async def cancel_for_customer(
-        self, order_id: str, customer_id: str
+    def _authorize_order_access(
+        self,
+        doc: dict[str, Any],
+        *,
+        customer_id: str | None,
+        guest_token: str | None,
+    ) -> None:
+        """Shared auth for customer/guest order management endpoints.
+
+        Raises 404 for non-owners (don't reveal existence) and 401 for
+        missing/invalid guest tokens.
+        """
+        order_id = doc["order_id"]
+        if customer_id:
+            if doc.get("customer_id") != customer_id:
+                raise ApiError(
+                    ErrorCode.NOT_FOUND, f"Order not found: {order_id}", http_status=404
+                )
+            return
+        if guest_token:
+            order_id_from_token = verify_guest_token(
+                guest_token, self.settings.guest_token_secret
+            )
+            if not order_id_from_token or order_id_from_token != order_id:
+                raise ApiError(
+                    ErrorCode.UNAUTHENTICATED,
+                    "Invalid or expired claim token.",
+                    http_status=401,
+                )
+            if doc.get("guest_management_token_hash") != _hash_token(guest_token):
+                raise ApiError(
+                    ErrorCode.UNAUTHENTICATED,
+                    "Token does not match this order.",
+                    http_status=401,
+                )
+            return
+        raise ApiError(
+            ErrorCode.UNAUTHENTICATED,
+            "Sign in or provide a guest claim token.",
+            http_status=401,
+        )
+
+    async def cancel_order(
+        self,
+        order_id: str,
+        *,
+        customer_id: str | None,
+        guest_token: str | None,
     ) -> OrderPublic:
-        """Customer-initiated cancellation. Allowed only pre-``packed``
+        """Customer- or guest-initiated cancellation. Allowed only pre-``packed``
         (REQ-049 + SPECS §5.3). Issues a Stripe refund for the remaining
         refundable balance, restocks inventory, and flips status."""
         doc = await self.repo.find_by_id(order_id)
-        if not doc or doc.get("customer_id") != customer_id:
+        if not doc:
             raise ApiError(
                 ErrorCode.NOT_FOUND, f"Order not found: {order_id}", http_status=404
             )
+        self._authorize_order_access(
+            doc, customer_id=customer_id, guest_token=guest_token
+        )
         if doc["status"] != "paid":
             raise ApiError(
                 ErrorCode.CONFLICT,
@@ -429,33 +563,9 @@ class OrdersService:
             )
 
         # Authorize: signed-in owner OR matching guest token.
-        if customer_id:
-            if doc.get("customer_id") != customer_id:
-                raise ApiError(
-                    ErrorCode.NOT_FOUND, f"Order not found: {order_id}", http_status=404
-                )
-        elif guest_token:
-            order_id_from_token = verify_guest_token(
-                guest_token, self.settings.guest_token_secret
-            )
-            if not order_id_from_token or order_id_from_token != order_id:
-                raise ApiError(
-                    ErrorCode.UNAUTHENTICATED,
-                    "Invalid or expired claim token.",
-                    http_status=401,
-                )
-            if doc.get("guest_management_token_hash") != _hash_token(guest_token):
-                raise ApiError(
-                    ErrorCode.UNAUTHENTICATED,
-                    "Token does not match this order.",
-                    http_status=401,
-                )
-        else:
-            raise ApiError(
-                ErrorCode.UNAUTHENTICATED,
-                "Sign in or provide a guest claim token.",
-                http_status=401,
-            )
+        self._authorize_order_access(
+            doc, customer_id=customer_id, guest_token=guest_token
+        )
 
         if doc["status"] not in {"shipped", "delivered", "return_requested"}:
             raise ApiError(

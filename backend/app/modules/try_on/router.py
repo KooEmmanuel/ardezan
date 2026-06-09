@@ -23,6 +23,7 @@ from app.modules.try_on.account_schemas import (
     FittingRoomSessionDetail,
 )
 from app.modules.try_on.account_service import FittingRoomService
+from app.modules.try_on.safety import read_upload_capped
 from app.modules.try_on.schemas import JobCreatedResponse, JobPublic, TryOnInputs
 from app.modules.try_on.service import TryOnService
 from app.rate_limit import enforce_upload_fingerprint, rate_limit_try_on_upload
@@ -48,6 +49,7 @@ ServiceDep = Annotated[TryOnService, Depends(get_service)]
 async def create_session(
     request: Request,
     service: ServiceDep,
+    customer: OptionalCustomerDep,
     photo: Annotated[UploadFile, File(description="Full-body photo (JPEG/PNG/WebP/HEIC)")],
     height: Annotated[str | None, Form()] = None,
     fit_preference: Annotated[str | None, Form()] = None,
@@ -63,7 +65,7 @@ async def create_session(
     if anonymous_session_id:
         await enforce_upload_fingerprint(request, anonymous_session_id)
 
-    body = await photo.read()
+    body = await read_upload_capped(photo)
     inputs = TryOnInputs(
         height=height,
         fit_preference=fit_preference,  # type: ignore[arg-type]
@@ -75,7 +77,7 @@ async def create_session(
         content_type=photo.content_type or "application/octet-stream",
         inputs=inputs,
         seeded_product_id=seeded_product_id,
-        customer_id=None,  # customer auth lands in M5
+        customer_id=(customer or {}).get("customer_id"),
         anonymous_session_id=anonymous_session_id,
         age_confirmed=age_confirmed,
     )
@@ -94,6 +96,9 @@ class RefineSessionRequest(BaseModel):
     response_model=JobCreatedResponse,
     summary="Spawn a new try-on session refined from an existing one",
     status_code=201,
+    # A refine costs as much as a fresh upload (analyzer + recommender +
+    # image batch) — same rate limits apply.
+    dependencies=[Depends(rate_limit_try_on_upload)],
 )
 async def refine_session(
     try_on_session_id: str,

@@ -73,14 +73,19 @@ async def list_my_orders(
 @router.post(
     "/{order_id}/cancel",
     response_model=OrderPublic,
-    summary="Cancel my order pre-pack — issues refund + restocks inventory",
+    summary="Cancel my order pre-pack (customer or guest with claim token) — issues refund + restocks inventory",
 )
 async def customer_cancel_order(
     order_id: str,
-    customer: CustomerDep,
     service: ServiceDep,
+    customer: OptionalCustomerDep,
+    token: Annotated[str | None, Query(max_length=1024)] = None,
 ) -> OrderPublic:
-    return await service.cancel_for_customer(order_id, customer["customer_id"])
+    return await service.cancel_order(
+        order_id,
+        customer_id=(customer or {}).get("customer_id"),
+        guest_token=token,
+    )
 
 
 class ReturnRequestBody(BaseModel):

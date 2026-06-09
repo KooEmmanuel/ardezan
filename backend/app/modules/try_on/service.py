@@ -67,6 +67,81 @@ class TryOnService:
         self.settings = get_settings()
         self.storage = get_storage()
 
+    async def _enforce_ai_guards(
+        self,
+        *,
+        customer_id: str | None,
+        anonymous_session_id: str | None,
+    ) -> dict[str, Any]:
+        """Kill switch + daily spend ceiling + per-identity quotas.
+
+        Runs *before* the safety classifier and object storage so a blocked
+        request costs nothing. Returns the resolved AI settings.
+        """
+        ai_settings = await self.ai_settings_repo.get_resolved()
+        if ai_settings["kill_switch_enabled"]:
+            raise ApiError(
+                ErrorCode.AI_UNAVAILABLE,
+                "Try-on is temporarily unavailable.",
+                http_status=503,
+                details={"reason": "kill_switch_enabled"},
+            )
+
+        # Global daily spend ceiling — same rule the worker enforces between
+        # stages, applied here so we stop accepting new work once it's hit.
+        ceiling = int(ai_settings.get("daily_spend_ceiling_amount") or 0)
+        if ceiling > 0:
+            from app.modules.admin.ai_repository import AnalyticsRepository
+
+            today_start = _now().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_spend = await AnalyticsRepository(self.db).ai_today_spend(today_start)
+            if today_spend >= ceiling:
+                raise ApiError(
+                    ErrorCode.AI_UNAVAILABLE,
+                    "Try-on is temporarily unavailable — please try again tomorrow.",
+                    http_status=503,
+                    details={"reason": "daily_spend_ceiling_reached"},
+                )
+
+        # Per-identity quotas (REQ: anonymous daily / registered weekly).
+        now = _now()
+        if customer_id:
+            limit = int(ai_settings.get("registered_weekly_limit") or 0)
+            if limit > 0:
+                used = await self.db[C.try_on_sessions].count_documents(
+                    {
+                        "customer_id": customer_id,
+                        "created_at": {"$gte": now - timedelta(days=7)},
+                    }
+                )
+                if used >= limit:
+                    raise ApiError(
+                        ErrorCode.RATE_LIMITED,
+                        f"You've reached your weekly try-on limit ({limit}). "
+                        "It resets as older sessions age out.",
+                        http_status=429,
+                        details={"reason": "registered_weekly_limit", "limit": limit},
+                    )
+        elif anonymous_session_id:
+            limit = int(ai_settings.get("anonymous_daily_limit") or 0)
+            if limit > 0:
+                used = await self.db[C.try_on_sessions].count_documents(
+                    {
+                        "anonymous_session_id": anonymous_session_id,
+                        "created_at": {"$gte": now - timedelta(days=1)},
+                    }
+                )
+                if used >= limit:
+                    raise ApiError(
+                        ErrorCode.RATE_LIMITED,
+                        f"You've reached today's try-on limit ({limit}). "
+                        "Create an account for a higher weekly allowance.",
+                        http_status=429,
+                        details={"reason": "anonymous_daily_limit", "limit": limit},
+                    )
+
+        return ai_settings
+
     async def create_session(
         self,
         *,
@@ -87,15 +162,13 @@ class TryOnService:
                 details={"hint": "Submit ``age_confirmed=true`` in the form."},
             )
 
-        # 2. AI kill switch + global cost ceiling check (M3.4 settings).
-        ai_settings = await self.ai_settings_repo.get_resolved()
-        if ai_settings["kill_switch_enabled"]:
-            raise ApiError(
-                ErrorCode.AI_UNAVAILABLE,
-                "Try-on is temporarily unavailable.",
-                http_status=503,
-                details={"reason": "kill_switch_enabled"},
-            )
+        # 2. AI kill switch + spend ceiling + per-identity quotas (M3.4
+        # settings) — before the safety classifier so blocked requests
+        # never incur AI or storage cost.
+        await self._enforce_ai_guards(
+            customer_id=customer_id,
+            anonymous_session_id=anonymous_session_id,
+        )
 
         # 3. Upload safety pipeline.
         safety = await validate_upload(photo_bytes, content_type)
@@ -186,6 +259,9 @@ class TryOnService:
                 "customer_id": customer_id,
                 "anonymous_session_id": anon_id,
                 "source": source,
+                # Persisted so refine can inherit the seed (the job doc
+                # expires after 30 min; the session is the durable record).
+                "seeded_product_id": seeded_product_id,
                 "uploaded_media_asset_id": media_asset_id,
                 "saved_photo_used": False,
                 "optional_inputs": inputs.model_dump(),
@@ -300,15 +376,13 @@ class TryOnService:
                 http_status=409,
             )
 
-        # AI kill-switch + budget check before spawning new work.
-        ai_settings = await self.ai_settings_repo.get_resolved()
-        if ai_settings["kill_switch_enabled"]:
-            raise ApiError(
-                ErrorCode.AI_UNAVAILABLE,
-                "Try-on is temporarily unavailable.",
-                http_status=503,
-                details={"reason": "kill_switch_enabled"},
-            )
+        # AI kill-switch + budget + quota check before spawning new work.
+        # A refine costs the same as a fresh session, so it counts against
+        # the same per-identity quota.
+        await self._enforce_ai_guards(
+            customer_id=owner_customer_id,
+            anonymous_session_id=original.get("anonymous_session_id"),
+        )
 
         now = _now()
         new_session_id = _session_id()
@@ -326,6 +400,13 @@ class TryOnService:
         )
         new_inputs = {**prior_inputs, "prompt": merged_prompt}
 
+        # Inherit the product seed so "try this piece on me" refinements
+        # keep pinning the hero product. Older sessions (pre-fix) didn't
+        # persist it, hence the optional_inputs fallback.
+        seeded_product_id = original.get("seeded_product_id") or (
+            original.get("optional_inputs") or {}
+        ).get("seeded_product_id")
+
         # The new session belongs to whoever the original belonged to —
         # registered if the original was registered, anonymous otherwise.
         anon_id = original.get("anonymous_session_id") if not owner_customer_id else None
@@ -341,6 +422,7 @@ class TryOnService:
                 "customer_id": owner_customer_id,
                 "anonymous_session_id": anon_id,
                 "source": "refine",
+                "seeded_product_id": seeded_product_id,
                 "uploaded_media_asset_id": media_asset_id,
                 "saved_photo_used": False,
                 "optional_inputs": new_inputs,
@@ -366,9 +448,7 @@ class TryOnService:
                 "input": {
                     "uploaded_media_asset_id": media_asset_id,
                     "optional_inputs": new_inputs,
-                    "seeded_product_id": (original.get("optional_inputs") or {}).get(
-                        "seeded_product_id"
-                    ),
+                    "seeded_product_id": seeded_product_id,
                     "refined_from_session_id": original_session_id,
                 },
                 "progress_events": [],

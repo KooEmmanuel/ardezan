@@ -65,6 +65,40 @@ async def test_failed_dispatch_marks_failed_and_reraises(
     assert "simulated side-effect failure" in doc["failure_reason"]
 
 
+async def test_failed_event_is_reprocessed_on_retry(
+    mock_db: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Stripe retries a failed delivery with the *same* event id. The retry
+    must reclaim the failed ledger row and reprocess instead of being
+    swallowed as a duplicate."""
+
+    async def _boom(_event: dict[str, Any]) -> dict[str, Any]:
+        raise RuntimeError("transient failure")
+
+    monkeypatch.setattr(wh, "_dispatch", _boom)
+    with pytest.raises(RuntimeError):
+        await process_event(_event("evt_retry"))
+
+    doc = await mock_db[C.payment_events].find_one({"provider_event_id": "evt_retry"})
+    assert doc["status"] == "failed"
+
+    # Second delivery: dispatch now succeeds → event ends up processed.
+    monkeypatch.undo()
+    result = await process_event(_event("evt_retry"))
+    body = bytes(result.body).decode()
+    assert '"duplicate":true' not in body.replace(" ", "")
+
+    doc = await mock_db[C.payment_events].find_one({"provider_event_id": "evt_retry"})
+    assert doc["status"] == "processed"
+    assert doc["failure_reason"] is None
+
+    # Still exactly one ledger row.
+    count = await mock_db[C.payment_events].count_documents(
+        {"provider_event_id": "evt_retry"}
+    )
+    assert count == 1
+
+
 async def test_webhook_route_rejects_missing_signature(mock_db: Any) -> None:
     # Hits the real route; no Stripe-Signature header → 400 before any work.
     from app.main import app

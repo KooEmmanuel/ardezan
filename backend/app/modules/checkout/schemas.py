@@ -75,6 +75,8 @@ class CreateCheckoutSessionRequest(BaseModel):
     billing_address: Address | None = None
     discount_code: str | None = None
     shipping_method: ShippingMethod = "standard"
+    # Proves ownership of custom_design lines created while signed out.
+    anonymous_session_id: str | None = Field(None, max_length=64)
 
 
 # ── Responses ───────────────────────────────────────────────────────

@@ -55,15 +55,22 @@ export function CheckoutPaymentForm({
     // Card flows often finish without redirecting (Stripe doesn't need to
     // bounce through a 3DS page). In that case we have the paymentIntent
     // right here — forward to the pending page which polls until the
-    // webhook materializes the order.
-    onSucceeded?.();
+    // webhook materializes the order. Only clear the cart once we're
+    // actually navigating; otherwise the customer would be stranded on
+    // checkout with an empty bag and no confirmation.
     if (paymentIntent) {
+      onSucceeded?.();
       window.location.assign(
         `/order-confirmation/pending?payment_intent=${encodeURIComponent(
           paymentIntent.id,
         )}&redirect_status=${paymentIntent.status}`,
       );
+      return;
     }
+    setError(
+      "Payment is still processing. Don't refresh — check your email for confirmation.",
+    );
+    setSubmitting(false);
   }
 
   return (

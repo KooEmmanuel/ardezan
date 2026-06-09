@@ -53,6 +53,31 @@ except ImportError:  # pragma: no cover
 MAX_BYTES = 20 * 1024 * 1024  # 20 MB
 MIN_DIMENSION = 300
 MAX_DIMENSION = 8000
+
+
+async def read_upload_capped(upload: Any, max_bytes: int = MAX_BYTES) -> bytes:
+    """Read an ``UploadFile`` body without buffering an unbounded payload.
+
+    ``await upload.read()`` pulls the whole multipart part into memory
+    *before* any size gate runs — a trivially exploitable memory-DoS.
+    Read in chunks and reject as soon as the cap is crossed instead.
+    """
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await upload.read(1024 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_bytes:
+            raise ApiError(
+                ErrorCode.VALIDATION_ERROR,
+                f"Photo is too large (max {max_bytes // (1024 * 1024)} MB).",
+                http_status=413,
+                details={"failed_gate": "file_size"},
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
 ALLOWED_CONTENT_TYPES = {
     "image/jpeg",
     "image/jpg",

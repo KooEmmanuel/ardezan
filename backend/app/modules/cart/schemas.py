@@ -52,6 +52,9 @@ class CartLineInput(BaseModel):
 
 class RevalidateRequest(BaseModel):
     lines: list[CartLineInput] = Field(..., max_length=99)
+    # The browser's anonymous id — used to prove ownership of any
+    # custom_design lines created while signed out.
+    anonymous_session_id: str | None = Field(None, max_length=64)
 
 
 class FullLookItem(BaseModel):
@@ -77,6 +80,7 @@ class CartLineState(BaseModel):
     design_session_id: str | None = None
 
     # Display fields (may be None if status=removed)
+    product_slug: str | None = None
     product_title: str | None = None
     variant_title: str | None = None
     size: str | None = None

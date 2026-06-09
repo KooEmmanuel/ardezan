@@ -204,7 +204,18 @@ class CatalogRepository:
 
     # ── Lookup ──────────────────────────────────────────────
     async def get_product_by_slug(self, slug: str) -> dict[str, Any] | None:
-        return await self.products.find_one({"slug": slug, **_published_filter()})
+        """Lookup by slug, falling back to product_id.
+
+        Order lines and cart lines only carry ``product_id``, so several
+        surfaces link/fetch by ID. Accepting both keeps those URLs working
+        while slug stays the canonical form.
+        """
+        doc = await self.products.find_one({"slug": slug, **_published_filter()})
+        if doc is None:
+            doc = await self.products.find_one(
+                {"product_id": slug, **_published_filter()}
+            )
+        return doc
 
     async def signed_urls_for(self, media_asset_ids: list[str]) -> dict[str, str]:
         """Public version of ``_sign_media_urls`` for the router."""

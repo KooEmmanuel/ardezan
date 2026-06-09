@@ -104,6 +104,7 @@ export type CartLineInput = {
 
 export type CartLineState = CartLineInput & {
   kind: CartLineKind;
+  product_slug?: string | null;
   product_title: string | null;
   variant_title: string | null;
   size: string | null;

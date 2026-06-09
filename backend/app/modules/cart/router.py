@@ -18,6 +18,7 @@ from app.modules.cart.schemas import (
     RevalidateResponse,
 )
 from app.modules.cart.service import CartService
+from app.modules.customers.deps import OptionalCustomerDep
 
 router = APIRouter()
 
@@ -37,11 +38,16 @@ ServiceDep = Annotated[CartService, Depends(get_service)]
 async def revalidate(
     body: RevalidateRequest,
     service: ServiceDep,
+    customer: OptionalCustomerDep,
 ) -> RevalidateResponse:
     """Stateless. Called by the storefront before showing the cart or starting
     checkout. The response carries a ``status`` per line and a top-level
     ``blocks_checkout`` flag the UI uses to gate the Checkout button."""
-    return await service.revalidate(body.lines)
+    return await service.revalidate(
+        body.lines,
+        customer_id=(customer or {}).get("customer_id"),
+        anonymous_session_id=body.anonymous_session_id,
+    )
 
 
 @router.post(

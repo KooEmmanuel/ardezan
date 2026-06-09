@@ -5,6 +5,24 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
 import { API_BASE_URL } from "@/lib/api";
+import { readCart, writeCart } from "@/lib/cart";
+
+// In redirect flows (3DS etc.) the checkout page never gets a chance to
+// clear the charged lines — the browser navigates straight here. Drop the
+// lines we charged for (recorded in sessionStorage before payment) once
+// the order is confirmed.
+function clearChargedLines() {
+  try {
+    const raw = window.sessionStorage.getItem("ardezan.checkout.line_ids");
+    window.sessionStorage.removeItem("ardezan.checkout.line_ids");
+    if (!raw) return;
+    const charged = new Set(JSON.parse(raw) as string[]);
+    if (charged.size === 0) return;
+    writeCart(readCart().filter((l) => !charged.has(l.line_id)));
+  } catch {
+    // storage unavailable — cart will self-correct on next revalidate
+  }
+}
 
 // After Stripe's PaymentElement confirms payment it redirects here with
 // ``payment_intent`` (and a guest claim token if applicable). The webhook
@@ -67,6 +85,7 @@ function OrderConfirmationPendingInner() {
           const dest = resolvedToken
             ? `/order-confirmation/${data.order_id}?token=${encodeURIComponent(resolvedToken)}`
             : `/order-confirmation/${data.order_id}`;
+          clearChargedLines();
           router.replace(dest);
           return;
         }

@@ -127,18 +127,47 @@ class CartService:
         self,
         line: CartLineInput,
         sessions: dict[str, dict[str, Any]],
+        *,
+        customer_id: str | None = None,
+        anonymous_session_id: str | None = None,
     ) -> CartLineState:
         """Build a CartLineState for a custom_design line from its session.
 
         Custom designs have no inventory and no SKU. The session is the
         source of truth for both the title and the locked-in price. A
         session in ``failed`` state is treated as removed so checkout
-        can't proceed against it.
+        can't proceed against it. A session the caller doesn't own is
+        also treated as removed — design ids must not be checkout-able
+        by anyone who merely knows them.
         """
         from app.modules.catalog.schemas import VariantPricing
 
         session = sessions.get(line.design_session_id) if line.design_session_id else None
         if not session or session.get("status") != "ready":
+            return _empty_state(
+                line.line_id,
+                product_id=None,
+                variant_id=None,
+                quantity=line.quantity,
+                kind="custom_design",
+                design_session_id=line.design_session_id,
+                source=line.source,
+            )
+
+        owner_customer = session.get("customer_id")
+        owner_anon = session.get("anonymous_session_id")
+        owned = (
+            (owner_customer is not None and owner_customer == customer_id)
+            or (owner_anon is not None and owner_anon == anonymous_session_id)
+            # Legacy sessions with no owner recorded stay usable.
+            or (not owner_customer and not owner_anon)
+        )
+        if not owned:
+            log.warning(
+                "cart.design_line_not_owned",
+                design_session_id=line.design_session_id,
+                caller_customer_id=customer_id,
+            )
             return _empty_state(
                 line.line_id,
                 product_id=None,
@@ -155,6 +184,23 @@ class CartService:
         title = f"Custom {piece} in {fabric.get('name', 'selected fabric')}"
         price = int(estimate.get("total_amount", 0))
         currency = estimate.get("currency", "USD")
+
+        # Fail closed on a missing/corrupt estimate — never let a custom
+        # design reach checkout at $0.
+        if price <= 0:
+            log.error(
+                "cart.design_line_zero_estimate",
+                design_session_id=line.design_session_id,
+            )
+            return _empty_state(
+                line.line_id,
+                product_id=None,
+                variant_id=None,
+                quantity=line.quantity,
+                kind="custom_design",
+                design_session_id=line.design_session_id,
+                source=line.source,
+            )
         pricing = VariantPricing(price_amount=price, currency=currency)
 
         # Re-sign the rendered image so the cart row has a fresh URL.
@@ -198,11 +244,18 @@ class CartService:
         )
 
     # ── Public ─────────────────────────────────────────────────
-    async def revalidate(self, lines: Iterable[CartLineInput]) -> RevalidateResponse:
+    async def revalidate(
+        self,
+        lines: Iterable[CartLineInput],
+        *,
+        customer_id: str | None = None,
+        anonymous_session_id: str | None = None,
+    ) -> RevalidateResponse:
         """Refresh prices, availability, and stock status for every line.
 
         Returns one ``CartLineState`` per input line, with a ``status`` field
-        the UI uses to render warnings or remove the line.
+        the UI uses to render warnings or remove the line. The caller's
+        identity (customer or anonymous id) gates custom_design lines.
         """
         lines_list = list(lines)
         catalog_lines = [l for l in lines_list if l.kind == "catalog"]
@@ -230,7 +283,12 @@ class CartService:
         for line in lines_list:
             if line.kind == "custom_design":
                 states.append(
-                    await self._revalidate_design_line(line, design_sessions)
+                    await self._revalidate_design_line(
+                        line,
+                        design_sessions,
+                        customer_id=customer_id,
+                        anonymous_session_id=anonymous_session_id,
+                    )
                 )
                 continue
 
@@ -283,6 +341,7 @@ class CartService:
                     line_id=line.line_id,
                     product_id=line.product_id,
                     variant_id=line.variant_id,
+                    product_slug=product.get("slug"),
                     product_title=product.get("title"),
                     variant_title=variant.get("title"),
                     size=variant.get("size"),
@@ -383,6 +442,7 @@ class CartService:
                 line_id=line_id,
                 product_id=item.product_id,
                 variant_id=item.variant_id,
+                product_slug=product.get("slug"),
                 product_title=product.get("title"),
                 variant_title=variant.get("title"),
                 size=variant.get("size"),

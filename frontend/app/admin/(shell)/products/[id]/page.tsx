@@ -76,7 +76,7 @@ export default async function AdminProductDetailPage({
         actions={
           <Link
             className="btn-secondary text-sm inline-flex items-center gap-1.5"
-            href={`/p/${product.slug}`}
+            href={`/product/${product.slug}`}
             target="_blank"
           >
             View live

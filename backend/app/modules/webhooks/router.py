@@ -101,12 +101,38 @@ async def _process_event(event: dict[str, Any]) -> JSONResponse:
     try:
         await db[C.payment_events].insert_one(payevt_doc)
     except DuplicateKeyError:
+        # Already seen. If the previous attempt *failed*, atomically reclaim
+        # the event (status failed → received) so this retry actually
+        # reprocesses it. Without this, Stripe's retries would be swallowed
+        # forever and a partially-fulfilled order would never converge.
+        reclaimed = await db[C.payment_events].find_one_and_update(
+            {
+                "provider": "stripe",
+                "provider_event_id": event_id,
+                "status": "failed",
+            },
+            {
+                "$set": {
+                    "status": "received",
+                    "received_at": now,
+                    "processed_at": None,
+                    "failure_reason": None,
+                }
+            },
+        )
+        if reclaimed is None:
+            log.info(
+                "webhook.duplicate_event",
+                provider_event_id=event_id,
+                event_type=event_type,
+            )
+            return JSONResponse({"status": "ok", "duplicate": True})
         log.info(
-            "webhook.duplicate_event",
+            "webhook.retrying_failed_event",
             provider_event_id=event_id,
             event_type=event_type,
+            previous_failure=reclaimed.get("failure_reason"),
         )
-        return JSONResponse({"status": "ok", "duplicate": True})
 
     log.info("webhook.received", event_id=event_id, event_type=event_type)
 
@@ -183,6 +209,8 @@ async def _handle_payment_succeeded(intent: dict[str, Any]) -> dict[str, Any]:
     order = await service.create_from_checkout(
         checkout_session_id,
         stripe_payment_intent_id=payment_intent_id,
+        paid_amount=intent.get("amount_received") or intent.get("amount"),
+        paid_currency=intent.get("currency"),
     )
     return {
         "handled": True,
@@ -205,13 +233,29 @@ async def _handle_payment_failed(intent: dict[str, Any]) -> dict[str, Any]:
         )
         return {"handled": False, "reason": "no_checkout_session_id_in_metadata"}
 
+    # Guard against out-of-order delivery: a late failure event from an
+    # earlier card attempt must not clobber a session that has since been
+    # paid (or otherwise closed).
+    checkout_repo = CheckoutRepository(db)
+    session = await checkout_repo.find_by_id(checkout_session_id)
+    if session and session.get("status") not in {"open", "failed"}:
+        log.info(
+            "webhook.payment_failed_ignored",
+            checkout_session_id=checkout_session_id,
+            payment_intent_id=payment_intent_id,
+            session_status=session.get("status"),
+        )
+        return {
+            "handled": False,
+            "reason": f"session_status_{session.get('status')}",
+        }
+
     # Release inventory holds and mark the session failed so the customer can
     # retry. Repeated failures are safe — release_checkout only acts on active
     # holds.
     inv_service = InventoryService(db)
     released = await inv_service.release_checkout(checkout_session_id)
 
-    checkout_repo = CheckoutRepository(db)
     await checkout_repo.update_status(
         checkout_session_id, status="failed", now=_now()
     )

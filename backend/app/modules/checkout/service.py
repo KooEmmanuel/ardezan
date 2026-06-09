@@ -96,8 +96,39 @@ class CheckoutService:
         self.inventory = InventoryService(db)
         self.stripe: StripeClient = get_stripe_client()
 
+    # ── Ownership ──────────────────────────────────────────────
+    @staticmethod
+    def _authorize_session_access(
+        doc: dict[str, Any],
+        *,
+        customer_id: str | None,
+        idempotency_key: str | None,
+    ) -> None:
+        """Sessions carry addresses and payment state, so reads/cancels are
+        owner-only. Proof of ownership is either the signed-in customer the
+        session was created for, or — for guest sessions — the client-held
+        ``Idempotency-Key`` that created it. Non-owners get 404 so session
+        ids can't be probed."""
+        owner = doc.get("customer_id")
+        if owner:
+            if customer_id == owner:
+                return
+        elif idempotency_key and idempotency_key == doc.get("idempotency_key"):
+            return
+        raise ApiError(
+            ErrorCode.NOT_FOUND,
+            f"Checkout session not found: {doc['checkout_session_id']}",
+            http_status=404,
+        )
+
     # ── Reads ──────────────────────────────────────────────────
-    async def get_session(self, checkout_session_id: str) -> CheckoutSessionPublic:
+    async def get_session(
+        self,
+        checkout_session_id: str,
+        *,
+        customer_id: str | None = None,
+        idempotency_key: str | None = None,
+    ) -> CheckoutSessionPublic:
         doc = await self.repo.find_by_id(checkout_session_id)
         if not doc:
             raise ApiError(
@@ -105,10 +136,19 @@ class CheckoutService:
                 f"Checkout session not found: {checkout_session_id}",
                 http_status=404,
             )
+        self._authorize_session_access(
+            doc, customer_id=customer_id, idempotency_key=idempotency_key
+        )
         return _to_public(doc, include_client_secret=False)
 
     # ── Cancel ─────────────────────────────────────────────────
-    async def cancel_session(self, checkout_session_id: str) -> CheckoutSessionPublic:
+    async def cancel_session(
+        self,
+        checkout_session_id: str,
+        *,
+        customer_id: str | None = None,
+        idempotency_key: str | None = None,
+    ) -> CheckoutSessionPublic:
         doc = await self.repo.find_by_id(checkout_session_id)
         if not doc:
             raise ApiError(
@@ -116,6 +156,9 @@ class CheckoutService:
                 f"Checkout session not found: {checkout_session_id}",
                 http_status=404,
             )
+        self._authorize_session_access(
+            doc, customer_id=customer_id, idempotency_key=idempotency_key
+        )
         if doc["status"] != "open":
             return _to_public(doc, include_client_secret=False)
 
@@ -137,6 +180,16 @@ class CheckoutService:
         idempotency_key: str,
         customer_id: str | None = None,
     ) -> CheckoutSessionPublic:
+        # 0. Guests must leave an email — it's where the confirmation and
+        # the order-management claim token go. Without it the order would
+        # be unreachable after checkout.
+        if not customer_id and not request.guest_email:
+            raise ApiError(
+                ErrorCode.VALIDATION_ERROR,
+                "An email address is required for guest checkout.",
+                http_status=400,
+            )
+
         # 1. Idempotency check.
         existing = await self.repo.find_by_idempotency_key(idempotency_key)
         if existing:
@@ -148,8 +201,12 @@ class CheckoutService:
             # Stripe intent is the same one we created originally.
             return _to_public(existing, include_client_secret=True)
 
-        # 2. Revalidate the cart.
-        revalidated = await self.cart.revalidate(request.lines)
+        # 2. Revalidate the cart (caller identity gates custom_design lines).
+        revalidated = await self.cart.revalidate(
+            request.lines,
+            customer_id=customer_id,
+            anonymous_session_id=request.anonymous_session_id,
+        )
         if revalidated.blocks_checkout:
             raise ApiError(
                 ErrorCode.OUT_OF_STOCK,

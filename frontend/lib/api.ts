@@ -1,3 +1,4 @@
+import { readAnonId } from "@/lib/anon";
 import type {
   Address,
   BodyProfileStatus,
@@ -13,6 +14,7 @@ import type {
   FabricPublic,
   JobCreatedResponse,
   JobPublic,
+  OrderPublic,
   PieceType,
   ProductDetail,
   ProductListResponse,
@@ -149,10 +151,15 @@ export const api = {
   },
   listCategories: () => apiFetch<CategoryListResponse>("/api/v1/catalog/categories"),
   getProduct: (slug: string) => apiFetch<ProductDetail>(`/api/v1/catalog/products/${slug}`),
+  // ``anonymous_session_id`` proves ownership of custom-design lines
+  // created while signed out (backend treats unowned designs as removed).
   revalidateCart: (lines: CartLineInput[]) =>
     apiFetch<RevalidateResponse>("/api/v1/cart/revalidate", {
       method: "POST",
-      body: JSON.stringify({ lines }),
+      body: JSON.stringify({
+        lines,
+        anonymous_session_id: readAnonId() ?? undefined,
+      }),
     }),
 
   // Sends the anonymous localStorage cart up to the server on login/signup
@@ -175,7 +182,11 @@ export const api = {
     apiFetch<CheckoutSessionPublic>("/api/v1/checkout/sessions", {
       method: "POST",
       idempotencyKey: `checkout_${crypto.randomUUID()}`,
-      body: JSON.stringify({ shipping_method: "standard", ...input }),
+      body: JSON.stringify({
+        shipping_method: "standard",
+        anonymous_session_id: readAnonId() ?? undefined,
+        ...input,
+      }),
     }),
 
   // ── Try-on (M4) ────────────────────────────────────────────────
@@ -237,6 +248,14 @@ export const api = {
 
   logout: () =>
     apiFetch<{ status: string }>("/api/v1/auth/logout", { method: "POST" }),
+
+  // Link a guest order to the (now signed-in) customer using the claim
+  // token from the confirmation email / page.
+  claimGuestOrder: (orderId: string, token: string) =>
+    apiFetch<OrderPublic>(
+      `/api/v1/orders/guest/${encodeURIComponent(orderId)}/claim`,
+      { method: "POST", body: JSON.stringify({ token }) },
+    ),
 
   getMe: () => apiFetch<CustomerPublic>("/api/v1/account/me"),
 

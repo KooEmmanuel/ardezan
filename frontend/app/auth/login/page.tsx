@@ -8,6 +8,7 @@ import { AuthShell } from "@/components/auth-shell";
 import { readAnonId } from "@/lib/anon";
 import { api } from "@/lib/api";
 import { readCart } from "@/lib/cart";
+import { safeNextPath } from "@/lib/navigation";
 
 export default function LoginPage() {
   return (
@@ -20,7 +21,7 @@ export default function LoginPage() {
 function LoginInner() {
   const router = useRouter();
   const search = useSearchParams();
-  const next = search.get("next") ?? "/account/me";
+  const next = safeNextPath(search.get("next"), "/account/me");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

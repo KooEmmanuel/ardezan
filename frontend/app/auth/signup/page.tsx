@@ -8,6 +8,7 @@ import { AuthShell } from "@/components/auth-shell";
 import { readAnonId } from "@/lib/anon";
 import { api } from "@/lib/api";
 import { readCart } from "@/lib/cart";
+import { safeNextPath } from "@/lib/navigation";
 
 export default function SignupPage() {
   return (
@@ -20,7 +21,11 @@ export default function SignupPage() {
 function SignupInner() {
   const router = useRouter();
   const search = useSearchParams();
-  const next = search.get("next") ?? "/account/me";
+  const next = safeNextPath(search.get("next"), "/account/me");
+  // Guest-order claim handoff from the confirmation page
+  // (/auth/signup?claim=<token>&order=<order_id>).
+  const claimToken = search.get("claim");
+  const claimOrderId = search.get("order");
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -49,6 +54,17 @@ function SignupInner() {
           await api.mergeAnonymousCart(localCart);
         } catch {
           // ignore — local cart still works
+        }
+      }
+      // Link the guest order to the new account. Best-effort — an
+      // expired/used token shouldn't block account creation.
+      if (claimToken && claimOrderId) {
+        try {
+          await api.claimGuestOrder(claimOrderId, claimToken);
+          router.push(`/account/orders/${encodeURIComponent(claimOrderId)}`);
+          return;
+        } catch {
+          // token invalid/expired — continue to the normal destination
         }
       }
       router.push(next);

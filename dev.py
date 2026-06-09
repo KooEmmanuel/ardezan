@@ -106,14 +106,22 @@ class Service:
         cwd: Path,
         color: str,
         env: Optional[dict[str, str]] = None,
+        restart_on_exit: bool = False,
     ) -> None:
         self.name = name
         self.cmd = cmd
         self.cwd = cwd
         self.color = color
         self.env = env
+        # If True, the watch loop will respawn this service on non-zero
+        # exit instead of bringing the whole stack down. Used for the
+        # arq worker, which is stateless (queue lives in Redis) and is
+        # the service most likely to die on a transient Redis blip.
+        self.restart_on_exit = restart_on_exit
         self.process: Optional[subprocess.Popen[bytes]] = None
         self._thread: Optional[threading.Thread] = None
+        # Crash-loop guard: list of monotonic timestamps of recent exits.
+        self._recent_exits: list[float] = []
 
     def start(self) -> None:
         banner(f"start {self.name} → {' '.join(self.cmd)}  ({self.cwd.relative_to(ROOT)})")
@@ -258,6 +266,7 @@ def build_services(args: argparse.Namespace) -> list[Service]:
                 cmd=["uv", "run", "arq", "worker.main.WorkerSettings"],
                 cwd=BACKEND,
                 color=SERVICE_COLORS["worker"],
+                restart_on_exit=True,
             )
         )
 
@@ -332,6 +341,11 @@ def main() -> int:
     signal.signal(signal.SIGINT, on_signal)
     signal.signal(signal.SIGTERM, on_signal)
 
+    # Crash-loop guard: max N restarts inside the rolling window.
+    RESTART_WINDOW_SEC = 60.0
+    RESTART_MAX_IN_WINDOW = 5
+    RESTART_BACKOFF_SEC = 2.0
+
     try:
         # Watch for unexpected exits while waiting for shutdown.
         while not stopping.is_set():
@@ -341,11 +355,41 @@ def main() -> int:
                     # Failed to start — count as fatal.
                     stopping.set()
                     break
-                if s.process.poll() is not None:
-                    code = s.process.returncode
-                    warn(f"{s.name} exited (code {code}). Bringing the stack down.")
-                    stopping.set()
-                    break
+                if s.process.poll() is None:
+                    continue
+
+                code = s.process.returncode
+
+                # Restartable service (e.g. arq worker): respawn it
+                # rather than tearing down the whole stack. Worker is
+                # stateless — queue state lives in Redis, jobs survive.
+                if s.restart_on_exit and not stopping.is_set():
+                    now = time.monotonic()
+                    s._recent_exits = [
+                        t for t in s._recent_exits if now - t < RESTART_WINDOW_SEC
+                    ]
+                    s._recent_exits.append(now)
+                    if len(s._recent_exits) > RESTART_MAX_IN_WINDOW:
+                        err(
+                            f"{s.name} crashed {len(s._recent_exits)} times in "
+                            f"{int(RESTART_WINDOW_SEC)}s — giving up. Bringing the stack down."
+                        )
+                        stopping.set()
+                        break
+                    warn(
+                        f"{s.name} exited (code {code}); restarting in "
+                        f"{RESTART_BACKOFF_SEC:.0f}s "
+                        f"({len(s._recent_exits)}/{RESTART_MAX_IN_WINDOW} in window)…"
+                    )
+                    time.sleep(RESTART_BACKOFF_SEC)
+                    if stopping.is_set():
+                        break
+                    s.start()
+                    continue
+
+                warn(f"{s.name} exited (code {code}). Bringing the stack down.")
+                stopping.set()
+                break
     finally:
         for s in reversed(services):
             s.stop()

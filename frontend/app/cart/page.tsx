@@ -410,7 +410,7 @@ function BucketCard({
               ) : (
                 <Link
                   className="font-display text-base leading-tight hover:underline"
-                  href={`/product/${line.product_id}`}
+                  href={`/product/${line.product_slug ?? line.product_id}`}
                 >
                   {line.product_title ?? line.product_id}
                 </Link>

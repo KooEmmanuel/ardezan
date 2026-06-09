@@ -21,6 +21,7 @@ from app.modules.design.schemas import (
 from app.modules.design.service import DesignService
 from app.modules.fabrics.pricing import CostBreakdown
 from app.modules.fabrics.schemas import PieceType
+from app.modules.try_on.safety import read_upload_capped
 from app.rate_limit import enforce_upload_fingerprint, rate_limit_try_on_upload
 
 router = APIRouter()
@@ -63,12 +64,15 @@ async def create_design_session(
     if anonymous_session_id:
         await enforce_upload_fingerprint(request, anonymous_session_id)
 
-    body = await photo.read()
+    body = await read_upload_capped(photo)
 
     reference_bytes: bytes | None = None
     reference_content_type: str | None = None
     if style_reference is not None and style_reference.filename:
-        reference_bytes = await style_reference.read()
+        # Reference images are capped tighter (the service enforces 8 MB).
+        reference_bytes = await read_upload_capped(
+            style_reference, max_bytes=8 * 1024 * 1024
+        )
         if reference_bytes:
             reference_content_type = (
                 style_reference.content_type or "application/octet-stream"

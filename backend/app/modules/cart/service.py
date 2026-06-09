@@ -289,7 +289,14 @@ class CartService:
                     color=variant.get("color"),
                     color_hex=variant.get("color_hex"),
                     primary_media_asset_id=primary_id,
-                    primary_image_url=signed_image_urls.get(primary_id) if primary_id else None,
+                    # Same precedence as the catalog DTO (catalog/repository.py):
+                    # a seeded ``static_image_url`` wins, else the B2 signed URL.
+                    # Without this, seeded products (no media asset) show a blank
+                    # thumbnail in the cart even though the catalog renders fine.
+                    primary_image_url=(
+                        product.get("static_image_url")
+                        or (signed_image_urls.get(primary_id) if primary_id else None)
+                    ),
                     quantity=line.quantity,
                     status=status,
                     source=line.source,
@@ -382,6 +389,10 @@ class CartService:
                 color=variant.get("color"),
                 color_hex=variant.get("color_hex"),
                 primary_media_asset_id=product.get("primary_media_asset_id"),
+                # Seeded catalog serves images from static_image_url, not B2.
+                # (revalidate() re-resolves this on cart load too, but set it
+                # here so the add-to-cart confirmation shows the thumbnail.)
+                primary_image_url=product.get("static_image_url"),
                 quantity=item.quantity,
                 status="ok",
                 source="try_on_full_look",
